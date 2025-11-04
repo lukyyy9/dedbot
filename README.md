@@ -1,213 +1,237 @@
-# 📊 DCA Entry Discord Bot
+# DCA Entry Discord Bot
 
-Automated Discord bot for daily calculation of buying opportunity scores on ETFs using a DCA (Dollar-Cost Averaging) strategy.
+A sophisticated Discord bot that calculates daily Dollar Cost Averaging (DCA) entry signals for ETFs and stocks based on technical analysis metrics. The bot includes a web interface for configuration management and backtesting capabilities.
 
-## 📖 Description
+## 🚀 Features
 
-This bot analyzes a list of ETF/tickers daily and calculates a composite score based on multiple technical indicators to identify the best entry points for a DCA strategy. Results are automatically sent to Discord via webhook.
+- **Automated Daily Scoring**: Calculates entry signals for multiple tickers based on configurable technical indicators
+- **Discord Notifications**: Sends daily score updates to Discord via webhooks with formatted messages and alerts
+- **Web Administration Interface**: Full-featured web UI for managing configuration, tickers, weights, and formulas
+- **Backtesting Engine**: Historical performance analysis with visual results
+- **Configurable Scoring**: Customizable weights and formulas for:
+  - Drawdown (distance from all-time high)
+  - Volatility (30-day standard deviation)
+  - RSI (Relative Strength Index)
+  - Price momentum
+- **Docker Support**: Fully containerized deployment with Docker Compose
+- **Historical Data Tracking**: Persistent storage of daily scores in CSV format
 
-### Analyzed Indicators
+## 📋 Prerequisites
 
-The composite score (0-100) is calculated from:
+- Docker and Docker Compose
+- Discord webhook URL (for notifications)
 
-- **90-day Drawdown** (25%): Measures the decline from the 90-day high
-- **14-day RSI** (25%): Relative Strength Index to identify oversold conditions
-- **MA50 Distance** (20%): Gap from the 50-day moving average
-- **30-day Momentum** (15%): Price variation over 30 days
-- **MA200 Trend** (10%): Position relative to the 200-day moving average
-- **20-day Volatility** (5%): Standard deviation of returns over 20 days
+## 🛠️ Installation
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/lukyyy9/DEDBot.git
+cd DEDBot
+```
+
+### 2. Configure the Bot
+
+Create or edit `config.yaml` with your settings:
+
+```yaml
+webhook_url: "YOUR_DISCORD_WEBHOOK_URL"
+
+# List of ETF/stock tickers to monitor
+tickers: []
+
+# Historical data period
+data_period: "365d"
+
+# Normalization caps
+drawdown_cap: 0.25
+volatility_cap: 0.10
+
+# Output files (must point to /data)
+output_csv: "/data/scores_history.csv"
+log_file: "/data/bot_daily_score.log"
+
+# Admin tokens for web interface
+admin:
+  admin_tokens:
+    - "your-secure-admin-token-here"
+
+# Timezone for scheduler
+timezone: "UTC"
+```
+
+### 3. Create Data Directory
+
+```bash
+mkdir -p data
+```
+
+### 4. Start the Services
+
+Using the provided script:
+
+```bash
+chmod +x start-v2.sh
+./start-v2.sh
+```
+
+Or manually with Docker Compose:
+
+```bash
+docker-compose up -d
+```
+
+## 🏗️ Architecture
+
+The project consists of two main services:
+
+### 1. DCA Bot (`dca-bot`)
+- Runs scheduled daily scoring calculations
+- Fetches market data from Yahoo Finance
+- Calculates technical indicators
+- Sends notifications to Discord
+- Logs results to CSV
+
+### 2. Web Interface (`dca-web`)
+- Admin authentication system
+- Configuration management (tickers, weights, formulas)
+- Live scoring preview
+- Backtesting interface with visual results
+- Runs on port 5001
+
+## 📊 Scoring Components
+
+The bot calculates a composite score (0-100) based on:
+
+| Component | Description | Weight (default) |
+|-----------|-------------|------------------|
+| **Drawdown** | Distance from all-time high (capped at 25%) | Configurable |
+| **Volatility** | 30-day price volatility (capped at 10%) | Configurable |
+| **RSI** | Relative Strength Index (14-period) | Configurable |
+| **Momentum** | Recent price momentum | Configurable |
 
 ### Score Interpretation
 
-- **✅ Score > 55**: Favorable buying opportunity
-- **⚠️ Score 45-55**: Neutral zone
-- **❌ Score < 45**: Unfavorable conditions
+- ✅ **55-100**: Strong entry signal (triggers @everyone alert)
+- ⚠️ **45-54**: Neutral zone
+- ❌ **0-44**: Weak entry signal
 
-## 🚀 Installation
+## 🌐 Web Interface
 
-### Prerequisites
+Access the web interface at `http://localhost:5001`
 
-- Docker and Docker Compose
-- A configured Discord webhook
+### Features:
+- **Dashboard**: Overview of current configuration and recent scores
+- **Tickers Management**: Add/remove ETFs and stocks to monitor
+- **Weights Configuration**: Adjust scoring component weights
+- **Formulas Customization**: Define custom scoring formulas
+- **Backtest**: Historical performance analysis with visual charts
 
-### Quick Setup
+### Authentication
 
-1. **Clone the repository**
+Use one of the admin tokens defined in `config.yaml` to access the interface.
 
-```bash
-git clone https://github.com/lukyyy9/dca-entry-discord-bot.git
-cd dca-entry-discord-bot
-```
-
-2. **Configure the `config.yaml` file**
-
-```yaml
-webhook_url: "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_TOKEN"
-
-tickers:
-  - "PSP5.PA"    # S&P 500 EUR
-  - "SXRT.DE"    # STOXX 600
-  - "DCAM.PA"    # MSCI World
-
-data_period: "365d"
-timezone: "UTC"
-
-# Weight customization (optional)
-weights:
-  drawdown90: 0.25
-  rsi14: 0.25
-  dist_ma50: 0.20
-  momentum30: 0.15
-  trend_ma200: 0.10
-  volatility20: 0.05
-```
-
-3. **Start the bot**
-
-```bash
-docker compose up -d
-```
-
-## 🐳 Docker Usage
-
-### With Docker Compose (recommended)
-
-```bash
-# Start the bot
-docker compose up -d
-
-# View logs
-docker compose logs -f
-
-# Stop the bot
-docker compose down
-```
-
-### With Docker directly
-
-```bash
-docker run -d \
-  --name dca-entry-discord-bot \
-  -v $(pwd)/config.yaml:/app/config.yaml:ro \
-  -v $(pwd)/data:/data \
-  -e TZ=UTC \
-  -e DEV=false \
-  imluky/dca-entry-discord-bot:latest
-```
-
-## ⚙️ Configuration
+## 🐳 Docker Configuration
 
 ### Environment Variables
 
-- **`TZ`**: Timezone (default: `UTC`)
-- **`DEV`**: Development mode
-  - `false`: Daily execution at 22:10 UTC (Mon-Fri)
-  - `true`: Execution every minute (testing)
+- `TZ`: Timezone (default: UTC)
+- `DEV`: Development mode - "true" runs every minute, "false" runs daily
+- `SECRET_KEY`: Flask secret key for web interface sessions
 
-### `config.yaml` Structure
+### Volumes
 
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| `webhook_url` | string | Discord webhook URL | **Required** |
-| `tickers` | list | List of tickers to analyze | `[]` |
-| `data_period` | string | Historical period to retrieve | `365d` |
-| `drawdown_cap` | float | Cap to normalize drawdown | `0.25` |
-| `volatility_cap` | float | Cap to normalize volatility | `0.10` |
-| `output_csv` | string | Historical CSV path | `/data/scores_history.csv` |
-| `log_file` | string | Log file path | `/data/bot_daily_score.log` |
-| `timezone` | string | Scheduler timezone | `UTC` |
-| `weights` | dict | Score component weights | See above |
+- `./config.yaml:/app/config.yaml:ro` - Configuration file (read-only)
+- `./data:/data` - Persistent data storage
 
-### Ticker Examples
+### Ports
 
-- **European ETFs**: `PSP5.PA`, `SXRT.DE`, `DCAM.PA`, `PANX.PA`
-- **US ETFs**: `SPY`, `QQQ`, `VOO`, `VTI`
-- **Crypto**: `BTC-USD`, `ETH-USD`
-- **Stocks**: `AAPL`, `MSFT`, `GOOGL`
+- `5001`: Web interface port
 
-## 📊 Data and History
+## 📁 Project Structure
 
-### Generated Files
-
-The bot automatically creates in the `data/` folder:
-
-- **`scores_history.csv`**: History of calculated scores
-- **`bot_daily_score.log`**: Execution logs
-
-### History CSV Format
-
-```csv
-timestamp,ticker,score,close,rsi14,ma50,ma200,drawdown90_pct,vol20_pct,momentum30_pct
-2025-11-04T22:10:00+00:00,PSP5.PA,67.5,450.32,42.5,445.20,440.10,5.3,1.2,-2.1
+```
+.
+├── bot_daily_score_v2.py    # Main bot script with scheduler
+├── web_app.py               # Flask web interface
+├── backtest_v2.py           # Backtesting script
+├── config.yaml              # Configuration file
+├── requirements.txt         # Python dependencies
+├── Dockerfile               # Docker image definition
+├── docker-compose.yml       # Multi-service orchestration
+├── start-v2.sh              # Quick start script
+├── core/                    # Core modules
+│   ├── __init__.py
+│   ├── config.py           # Configuration manager
+│   ├── scoring.py          # Scoring engine
+│   └── backtest.py         # Backtest engine
+├── templates/              # HTML templates for web interface
+├── static/                 # Static assets (CSS, JS)
+└── data/                   # Persistent data directory
+    ├── scores_history.csv
+    ├── backtest_results.csv
+    └── bot_daily_score.log
 ```
 
 ## 🔧 Development
 
-### Local Execution without Docker
+### Running Locally (without Docker)
 
+1. Install dependencies:
 ```bash
-# Install dependencies
 pip install -r requirements.txt
-
-# Modify config path in bot_daily_score.py
-# CONFIG_PATH = "config.yaml"  # instead of "/app/config.yaml"
-
-# Launch in DEV mode
-export DEV=true
-python bot_daily_score.py
 ```
 
-### Docker Image Build
-
+2. Run the bot:
 ```bash
-docker build -t dca-entry-discord-bot:latest .
+python bot_daily_score_v2.py
 ```
 
-### Project Structure
-
-```text
-dca-entry-discord-bot/
-├── bot_daily_score.py      # Main script
-├── config.yaml             # Configuration
-├── requirements.txt        # Python dependencies
-├── Dockerfile             # Docker image
-├── docker-compose.yml     # Orchestration
-├── data/                  # Generated data (volumes)
-│   ├── scores_history.csv
-│   └── bot_daily_score.log
-└── README.md
+3. Run the web interface:
+```bash
+python web_app.py
 ```
 
-## 🔔 Discord Configuration
+### Development Mode
 
-### Creating a Discord Webhook
+Set `DEV=true` in docker-compose.yml to run scoring every minute instead of daily (useful for testing).
 
-1. Open Discord server settings
-2. Go to **Integrations** > **Webhooks**
-3. Click **New Webhook**
-4. Name the webhook (e.g., "DCA Bot")
-5. Choose the destination channel
-6. Copy the webhook URL
-7. Paste the URL in `config.yaml`
+## 📊 Data Sources
 
-### Message Format
+- **Market Data**: Yahoo Finance (via yfinance library)
+- **Supported Assets**: Any ticker available on Yahoo Finance (stocks, ETFs, crypto, etc.)
 
-The bot sends a structured message with:
+## 🔐 Security Notes
 
-- Report date
-- List of analyzed tickers
-- Composite score with emoji (✅/⚠️/❌)
-- Current price
-- RSI
-- Moving averages (MA50, MA200)
+- Change default admin tokens in production
+- Set a secure `SECRET_KEY` for the web interface
+- Keep `config.yaml` private (contains webhook URLs)
+- Use HTTPS in production environments
 
-## 📝 Important Notes
+## 📝 Logging
 
-⚠️ **Warning**: This bot is a decision support tool. The calculated scores do not constitute financial advice in any way.
+Logs are stored in:
+- Bot logs: `data/bot_daily_score.log`
+- Docker logs: Use `docker-compose logs -f` to follow logs
 
-### Limitations
+## 🤝 Contributing
 
-- Data comes from Yahoo Finance (possible delay)
-- Scores are based solely on technical analysis
-- Past market performance does not predict future results
-- Some tickers may have incomplete data
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is open source and available under the MIT License.
+
+## 🙏 Acknowledgments
+
+- Built with [yfinance](https://github.com/ranaroussi/yfinance) for market data
+- Uses [Flask](https://flask.palletsprojects.com/) for the web interface
+- Scheduled with [APScheduler](https://apscheduler.readthedocs.io/)
+
+## 📞 Support
+
+For issues and questions, please open an issue on the [GitHub repository](https://github.com/lukyyy9/DEDBot).
+
+---
+
+**Note**: This bot is for educational and informational purposes only. Always do your own research before making investment decisions.
