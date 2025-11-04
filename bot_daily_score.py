@@ -20,26 +20,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 # ---------- CONFIG ----------
-CONFIG_PATH = "/app/config.yaml"  # mounted read-only from host
-DEFAULT_CONFIG = {
-    "webhook_url": "https://discord.com/api/webhooks/REPLACE_ME",
-    "tickers": ["SPY", "QQQ", "VTI", "IEFA"],
-    "data_period": "365d",
-    "weights": {
-        "drawdown90": 0.25,
-        "rsi14": 0.25,
-        "dist_ma50": 0.20,
-        "momentum30": 0.15,
-        "trend_ma200": 0.10,
-        "volatility20": 0.05
-    },
-    "drawdown_cap": 0.25,
-    "volatility_cap": 0.10,
-    "output_csv": "/data/scores_history.csv",
-    "log_file": "/data/bot_daily_score.log",
-    "timezone": "UTC",
-    "admin": {"admin_tokens": []}
-}
+CONFIG_PATH = "/app/config.yaml"
 
 # ---------- LOGGING ----------
 
@@ -57,21 +38,41 @@ def setup_logging(log_file: str):
 
 def load_config(path=CONFIG_PATH):
     if not os.path.exists(path):
-        # create default sample (not ideal for production) and exit so user creates proper config
-        with open(path, "w") as f:
-            yaml.safe_dump(DEFAULT_CONFIG, f)
-        print(f"Un fichier config par défaut a été créé : {path}. Edite-le et relance le container.")
+        logging.error("❌ ERREUR: Le fichier de configuration '%s' est introuvable.", path)
+        logging.error("Veuillez créer un fichier config.yaml et le monter dans le container.")
         sys.exit(1)
-    with open(path, "r") as f:
-        cfg = yaml.safe_load(f)
-    # merge defaults for missing keys
-    def merge(d, default):
-        for k, v in default.items():
-            if k not in d:
-                d[k] = v
-            elif isinstance(v, dict):
-                merge(d[k], v)
-    merge(cfg, DEFAULT_CONFIG)
+    
+    try:
+        with open(path, "r") as f:
+            cfg = yaml.safe_load(f)
+    except Exception as e:
+        logging.error("❌ ERREUR: Impossible de lire le fichier de configuration '%s': %s", path, e)
+        sys.exit(1)
+    
+    if not cfg:
+        logging.error("❌ ERREUR: Le fichier de configuration '%s' est vide.", path)
+        sys.exit(1)
+    
+    # Set default values for optional fields if missing
+    cfg.setdefault("data_period", "365d")
+    cfg.setdefault("drawdown_cap", 0.25)
+    cfg.setdefault("volatility_cap", 0.10)
+    cfg.setdefault("output_csv", "/data/scores_history.csv")
+    cfg.setdefault("log_file", "/data/bot_daily_score.log")
+    cfg.setdefault("timezone", "UTC")
+    cfg.setdefault("admin", {})
+    cfg["admin"].setdefault("admin_tokens", [])
+    
+    # Set default weights if missing
+    if "weights" not in cfg:
+        cfg["weights"] = {}
+    cfg["weights"].setdefault("drawdown90", 0.25)
+    cfg["weights"].setdefault("rsi14", 0.25)
+    cfg["weights"].setdefault("dist_ma50", 0.20)
+    cfg["weights"].setdefault("momentum30", 0.15)
+    cfg["weights"].setdefault("trend_ma200", 0.10)
+    cfg["weights"].setdefault("volatility20", 0.05)
+    
     return cfg
 
 # ---------- CONFIG VALIDATION ----------
@@ -293,11 +294,19 @@ def start_scheduler(cfg):
     global scheduler
     scheduler = BlockingScheduler(timezone=cfg.get("timezone", "UTC"))
 
-    # CronTrigger: 22:10 UTC every Monday-Friday
-    trigger = CronTrigger(hour=22, minute=10, day_of_week='mon-fri', timezone=cfg.get("timezone", "UTC"))
+    # Check DEV environment variable
+    dev_mode = os.getenv("DEV", "false").lower() in ("true", "1", "yes")
+    
+    if dev_mode:
+        # DEV mode: trigger every minute
+        trigger = CronTrigger(minute='*', timezone=cfg.get("timezone", "UTC"))
+        logging.info("🔧 MODE DEV ACTIVÉ: Scheduler programmé toutes les minutes")
+    else:
+        # Production mode: 22:10 UTC every Monday-Friday
+        trigger = CronTrigger(hour=22, minute=10, day_of_week='mon-fri', timezone=cfg.get("timezone", "UTC"))
+        logging.info("Scheduler programmé: tous les jours ouvrés 22:10 %s", cfg.get("timezone", "UTC"))
+    
     scheduler.add_job(lambda: daily_job(cfg), trigger, name="daily_score_job")
-
-    logging.info("Scheduler programmé: tous les jours ouvrés 22:10 %s", cfg.get("timezone", "UTC"))
 
     # start blocking scheduler (this will block until stopped)
     try:
