@@ -115,8 +115,8 @@ def config_page():
             
             volatility_cap = float(request.form.get('volatility_cap', 0.10))
             config_manager.set_config_value('volatility_cap', volatility_cap, "Cap volatilité")
-            
-            flash('Configuration mise à jour avec succès', 'success')
+
+            flash('Configuration enregistrée, redémarrer le bot pour appliquer les changements (docker compose restart)', 'warning')
         except Exception as e:
             flash(f'Erreur lors de la mise à jour: {str(e)}', 'error')
         
