@@ -232,8 +232,8 @@
             <nav>
                 <a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active"{% endif %}>Dashboard</a>
                 <a href="{{ url_for('config_page') }}" {% if request.endpoint == 'config_page' %}class="active"{% endif %}>Configuration</a>
-                <a href="{{ url_for('weights_page') }}" {% if request.endpoint == 'weights_page' %}class="active"{% endif %}>Poids</a>
                 <a href="{{ url_for('formulas_page') }}" {% if request.endpoint == 'formulas_page' %}class="active"{% endif %}>Formules</a>
+                <a href="{{ url_for('weights_page') }}" {% if request.endpoint == 'weights_page' %}class="active"{% endif %}>Poids</a>
                 <a href="{{ url_for('tickers_page') }}" {% if request.endpoint == 'tickers_page' %}class="active"{% endif %}>Tickers</a>
                 <a href="{{ url_for('backtest_page') }}" {% if request.endpoint == 'backtest_page' %}class="active"{% endif %}>Backtest</a>
                 <a href="{{ url_for('logout') }}">Déconnexion</a>

@@ -39,7 +39,7 @@ def get_score_emoji(score: float) -> str:
     elif score < 55:
         return "⚠️"
     else:
-        return "✅"
+        return "✅ @everyone"
 
 
 def build_discord_message(results: list):

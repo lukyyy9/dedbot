@@ -2,53 +2,55 @@
 
 {% block content %}
 <div class="card">
-    <h2>🧮 Formules de Calcul</h2>
+    <h2>🧮 Gestion des Formules</h2>
     
     <p style="color: #8b949e; margin-bottom: 20px;">
-        Personnalisez les formules de calcul des scores. Utilisez les variables disponibles 
-        et les fonctions numpy (np). <strong>Attention:</strong> des formules incorrectes peuvent 
-        casser le système !
+        Gérez les formules de calcul des composants. Vous pouvez ajouter, modifier ou supprimer des formules.
+        <strong>Attention:</strong> des formules incorrectes peuvent casser le système !
     </p>
     
-    <h3 style="margin-top: 30px; color: #58a6ff;">Formules par défaut</h3>
-    <table style="margin-bottom: 30px;">
-        <thead>
-            <tr>
-                <th>Composant</th>
-                <th>Formule par défaut</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for name, formula in default_formulas.items() %}
-            <tr>
-                <td><code>{{ name }}</code></td>
-                <td><code>{{ formula }}</code></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div style="background: #1c2128; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+        <h4 style="margin-top: 0; color: #58a6ff;">Variables disponibles :</h4>
+        <p style="margin: 5px 0;"><code>drawdown</code> : Drawdown depuis le plus haut</p>
+        <p style="margin: 5px 0;"><code>cap</code> : Cap de drawdown (config)</p>
+        <p style="margin: 5px 0;"><code>rsi</code> : RSI 14 jours</p>
+        <p style="margin: 5px 0;"><code>close</code> : Prix de clôture actuel</p>
+        <p style="margin: 5px 0;"><code>ma50</code> : Moyenne mobile 50 jours</p>
+        <p style="margin: 5px 0;"><code>ma200</code> : Moyenne mobile 200 jours</p>
+        <p style="margin: 5px 0;"><code>momentum</code> : Momentum 30 jours</p>
+        <p style="margin: 5px 0;"><code>vol20</code> : Volatilité 20 jours</p>
+        <h4 style="margin-top: 15px; margin-bottom: 5px; color: #58a6ff;">Fonctions disponibles :</h4>
+        <p style="margin: 5px 0;"><code>np</code> : Numpy (np.clip, np.exp, etc.)</p>
+        <p style="margin: 5px 0;"><code>min</code>, <code>max</code>, <code>exp</code></p>
+    </div>
     
-    <h3 style="color: #58a6ff;">Formules personnalisées actives</h3>
+    <h3 style="color: #58a6ff; margin-top: 30px;">Formules actives</h3>
     {% if formulas %}
-    <table>
+    <table style="margin-bottom: 30px;">
         <thead>
             <tr>
                 <th>Nom</th>
                 <th>Formule</th>
+                <th>Description</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
-            {% for name, formula in formulas.items() %}
+            {% for name, data in formulas.items() %}
             <tr>
                 <td><code>{{ name }}</code></td>
-                <td><code>{{ formula }}</code></td>
+                <td><code style="font-size: 0.85em;">{{ data.formula }}</code></td>
+                <td style="color: #8b949e; font-size: 0.9em;">{{ data.description or '-' }}</td>
                 <td>
+                    <button onclick="editFormula('{{ name }}', `{{ data.formula }}`, '{{ data.description }}')" 
+                            class="btn btn-secondary" style="margin-right: 5px;">
+                        ✏️ Modifier
+                    </button>
                     <form method="POST" style="display: inline;">
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="name" value="{{ name }}">
                         <button type="submit" class="btn btn-danger" 
-                                onclick="return confirm('Supprimer cette formule ?')">
+                                onclick="return confirm('Supprimer la formule {{ name }} ?')">
                             🗑️ Supprimer
                         </button>
                     </form>
@@ -58,23 +60,23 @@
         </tbody>
     </table>
     {% else %}
-    <p style="color: #8b949e;">Aucune formule personnalisée. Les formules par défaut sont utilisées.</p>
+    <p style="color: #8b949e; margin-bottom: 30px;">Aucune formule définie. Ajoutez votre première formule ci-dessous.</p>
     {% endif %}
     
-    <h3 style="margin-top: 30px; color: #58a6ff;">Ajouter une formule personnalisée</h3>
-    <form method="POST">
-        <input type="hidden" name="action" value="add">
+    <h3 style="color: #58a6ff; margin-top: 30px;">
+        <span id="form-title">➕ Ajouter une nouvelle formule</span>
+    </h3>
+    <form method="POST" id="formula-form">
+        <input type="hidden" name="action" value="add" id="form-action">
+        <input type="hidden" name="original_name" value="" id="original-name">
         
         <div class="form-group">
-            <label for="name">Nom du composant</label>
-            <select id="name" name="name" required>
-                <option value="drawdown">Drawdown</option>
-                <option value="rsi">RSI</option>
-                <option value="dist_ma50">Distance MA50</option>
-                <option value="momentum">Momentum</option>
-                <option value="trend_ma200">Trend MA200</option>
-                <option value="volatility">Volatilité</option>
-            </select>
+            <label for="name">Nom de la formule</label>
+            <input type="text" id="name" name="name" required 
+                   placeholder="Ex: drawdown90, rsi14, custom_indicator">
+            <small style="color: #8b949e;">
+                Utilisez un nom descriptif sans espaces (snake_case recommandé)
+            </small>
         </div>
         
         <div class="form-group">
@@ -82,8 +84,7 @@
             <textarea id="formula" name="formula" rows="3" required 
                       placeholder="Ex: np.clip((70.0 - rsi) / 40.0, 0.0, 1.0)"></textarea>
             <small style="color: #8b949e;">
-                Variables disponibles: drawdown, cap, rsi, close, ma50, ma200, momentum, vol20<br>
-                Fonctions disponibles: np (numpy), min, max, exp
+                La formule doit retourner une valeur entre 0.0 et 1.0
             </small>
         </div>
         
@@ -93,7 +94,87 @@
                    placeholder="Description de la formule">
         </div>
         
-        <button type="submit" class="btn">➕ Ajouter la formule</button>
+        <button type="submit" class="btn" id="submit-btn">➕ Ajouter la formule</button>
+        <button type="button" class="btn btn-secondary" onclick="cancelEdit()" 
+                id="cancel-btn" style="display: none;">
+            ❌ Annuler
+        </button>
     </form>
+    
+    <h3 style="margin-top: 40px; color: #58a6ff;">📖 Exemples de formules</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Composant</th>
+                <th>Formule exemple</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>drawdown90</code></td>
+                <td><code>min(drawdown / cap, 1.0)</code></td>
+                <td>Drawdown normalisé par le cap</td>
+            </tr>
+            <tr>
+                <td><code>rsi14</code></td>
+                <td><code>np.clip((70.0 - rsi) / 40.0, 0.0, 1.0)</code></td>
+                <td>RSI inversé et normalisé</td>
+            </tr>
+            <tr>
+                <td><code>dist_ma50</code></td>
+                <td><code>np.clip(1.0 - (close / ma50), 0.0, 1.0)</code></td>
+                <td>Distance sous la MA50</td>
+            </tr>
+            <tr>
+                <td><code>momentum30</code></td>
+                <td><code>np.clip(1.0 / (1.0 + np.exp(6.0 * momentum)), 0.0, 1.0)</code></td>
+                <td>Momentum avec sigmoid</td>
+            </tr>
+            <tr>
+                <td><code>trend_ma200</code></td>
+                <td><code>1.0 if close > ma200 else 0.3</code></td>
+                <td>Bonus si au-dessus de la MA200</td>
+            </tr>
+            <tr>
+                <td><code>volatility20</code></td>
+                <td><code>np.clip(1.0 - (vol20 / cap), 0.0, 1.0)</code></td>
+                <td>Volatilité inversée</td>
+            </tr>
+        </tbody>
+    </table>
 </div>
+
+<script>
+function editFormula(name, formula, description) {
+    // Changer le mode en édition
+    document.getElementById('form-action').value = 'edit';
+    document.getElementById('original-name').value = name;
+    document.getElementById('name').value = name;
+    document.getElementById('formula').value = formula;
+    document.getElementById('description').value = description;
+    
+    // Modifier les textes
+    document.getElementById('form-title').innerHTML = '✏️ Modifier la formule "' + name + '"';
+    document.getElementById('submit-btn').innerHTML = '💾 Enregistrer les modifications';
+    document.getElementById('cancel-btn').style.display = 'inline-block';
+    
+    // Scroll vers le formulaire
+    document.getElementById('formula-form').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelEdit() {
+    // Revenir au mode ajout
+    document.getElementById('form-action').value = 'add';
+    document.getElementById('original-name').value = '';
+    document.getElementById('name').value = '';
+    document.getElementById('formula').value = '';
+    document.getElementById('description').value = '';
+    
+    // Remettre les textes par défaut
+    document.getElementById('form-title').innerHTML = '➕ Ajouter une nouvelle formule';
+    document.getElementById('submit-btn').innerHTML = '➕ Ajouter la formule';
+    document.getElementById('cancel-btn').style.display = 'none';
+}
+</script>
 {% endblock %}

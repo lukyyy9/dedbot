@@ -33,6 +33,7 @@ def init_database():
         CREATE TABLE IF NOT EXISTS formulas (
             name TEXT PRIMARY KEY,
             formula TEXT NOT NULL,
+            weight REAL DEFAULT 0.0,
             description TEXT,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -134,12 +135,15 @@ class ConfigManager:
                     config[key] = value
             
             # Récupérer les formules personnalisées
-            cursor.execute("SELECT name, formula FROM formulas")
+            cursor.execute("SELECT name, formula, weight FROM formulas")
             formulas = {}
-            for name, formula in cursor.fetchall():
+            formula_weights = {}
+            for name, formula, weight in cursor.fetchall():
                 formulas[name] = formula
+                formula_weights[name] = weight
             if formulas:
                 config["formulas"] = formulas
+                config["formula_weights"] = formula_weights
             
             # Récupérer les tickers actifs
             cursor.execute("SELECT symbol FROM tickers WHERE enabled = 1")
@@ -187,29 +191,49 @@ class ConfigManager:
         
         return config.get(key, default)
     
-    def set_formula(self, name: str, formula: str, description: str = ""):
+    def set_formula(self, name: str, formula: str, weight: float = 0.0, description: str = ""):
         """Définit une formule personnalisée."""
         conn = self._get_db_connection()
         cursor = conn.cursor()
         
         cursor.execute("""
-            INSERT OR REPLACE INTO formulas (name, formula, description, updated_at)
-            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-        """, (name, formula, description))
+            INSERT OR REPLACE INTO formulas (name, formula, weight, description, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """, (name, formula, weight, description))
         
         conn.commit()
         conn.close()
     
-    def get_formulas(self) -> Dict[str, str]:
-        """Récupère toutes les formules personnalisées."""
+    def get_formulas(self) -> Dict[str, Dict[str, any]]:
+        """Récupère toutes les formules personnalisées avec leurs poids."""
         conn = self._get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("SELECT name, formula FROM formulas")
-        formulas = {name: formula for name, formula in cursor.fetchall()}
+        cursor.execute("SELECT name, formula, weight, description FROM formulas")
+        formulas = {
+            name: {
+                'formula': formula,
+                'weight': weight,
+                'description': description or ''
+            }
+            for name, formula, weight, description in cursor.fetchall()
+        }
         
         conn.close()
         return formulas
+    
+    def set_formula_weight(self, name: str, weight: float):
+        """Modifie le poids d'une formule."""
+        conn = self._get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE formulas SET weight = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE name = ?
+        """, (weight, name))
+        
+        conn.commit()
+        conn.close()
     
     def delete_formula(self, name: str):
         """Supprime une formule personnalisée."""

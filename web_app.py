@@ -123,33 +123,35 @@ def weights_page():
     """Page de gestion des poids."""
     if request.method == 'POST':
         try:
-            weights = {
-                'drawdown90': float(request.form.get('drawdown90', 0.25)),
-                'rsi14': float(request.form.get('rsi14', 0.25)),
-                'dist_ma50': float(request.form.get('dist_ma50', 0.20)),
-                'momentum30': float(request.form.get('momentum30', 0.15)),
-                'trend_ma200': float(request.form.get('trend_ma200', 0.10)),
-                'volatility20': float(request.form.get('volatility20', 0.05))
-            }
+            # Récupérer toutes les formules
+            formulas = config_manager.get_formulas()
+            
+            # Extraire les poids du formulaire
+            weights = {}
+            for name in formulas.keys():
+                weight_key = f'weight_{name}'
+                weight_value = float(request.form.get(weight_key, 0.0))
+                weights[name] = weight_value
             
             # Vérifier que la somme fait 1.0
             total = sum(weights.values())
             if abs(total - 1.0) > 0.01:
                 flash(f'La somme des poids doit être égale à 1.0 (actuellement: {total:.2f})', 'error')
             else:
-                for key, value in weights.items():
-                    config_manager.set_config_value(f'weights.{key}', value, f"Poids {key}")
+                # Mettre à jour les poids de chaque formule
+                for name, weight in weights.items():
+                    config_manager.set_formula_weight(name, weight)
                 flash('Poids mis à jour avec succès', 'success')
         except Exception as e:
             flash(f'Erreur lors de la mise à jour: {str(e)}', 'error')
         
         return redirect(url_for('weights_page'))
     
-    config = config_manager.get_config()
-    weights = config.get('weights', {})
-    total = sum(weights.values())
+    # Récupérer les formules avec leurs poids
+    formulas = config_manager.get_formulas()
+    total = sum(data['weight'] for data in formulas.values())
     
-    return render_template('weights.html', weights=weights, total=total)
+    return render_template('weights.html', formulas=formulas, total=total)
 
 
 @app.route('/formulas', methods=['GET', 'POST'])
@@ -164,10 +166,34 @@ def formulas_page():
                 formula = request.form.get('formula')
                 description = request.form.get('description', '')
                 
-                config_manager.set_formula(name, formula, description)
+                config_manager.set_formula(name, formula, 0.0, description)
                 flash(f'Formule "{name}" ajoutée avec succès', 'success')
             except Exception as e:
                 flash(f'Erreur lors de l\'ajout de la formule: {str(e)}', 'error')
+        
+        elif action == 'edit':
+            try:
+                original_name = request.form.get('original_name')
+                name = request.form.get('name')
+                formula = request.form.get('formula')
+                description = request.form.get('description', '')
+                
+                # Si le nom a changé, supprimer l'ancienne formule
+                if original_name and original_name != name:
+                    # Récupérer le poids de l'ancienne formule
+                    formulas = config_manager.get_formulas()
+                    old_weight = formulas.get(original_name, {}).get('weight', 0.0)
+                    config_manager.delete_formula(original_name)
+                    config_manager.set_formula(name, formula, old_weight, description)
+                else:
+                    # Garder le poids existant
+                    formulas = config_manager.get_formulas()
+                    current_weight = formulas.get(name, {}).get('weight', 0.0)
+                    config_manager.set_formula(name, formula, current_weight, description)
+                
+                flash(f'Formule "{name}" modifiée avec succès', 'success')
+            except Exception as e:
+                flash(f'Erreur lors de la modification de la formule: {str(e)}', 'error')
         
         elif action == 'delete':
             try:
@@ -181,17 +207,7 @@ def formulas_page():
     
     formulas = config_manager.get_formulas()
     
-    # Formules par défaut (documentation)
-    default_formulas = {
-        'drawdown': 'min(drawdown / cap, 1.0)',
-        'rsi': 'np.clip((70.0 - rsi) / 40.0, 0.0, 1.0)',
-        'dist_ma50': 'np.clip(1.0 - (close / ma50), 0.0, 1.0)',
-        'momentum': 'np.clip(1.0 / (1.0 + exp(6.0 * momentum)), 0.0, 1.0)',
-        'trend_ma200': '1.0 if close > ma200 else 0.3',
-        'volatility': 'np.clip(1.0 - (vol20 / cap), 0.0, 1.0)'
-    }
-    
-    return render_template('formulas.html', formulas=formulas, default_formulas=default_formulas)
+    return render_template('formulas.html', formulas=formulas)
 
 
 @app.route('/tickers', methods=['GET', 'POST'])

@@ -5,55 +5,101 @@
     <h2>⚖️ Gestion des Poids</h2>
     
     <p style="color: #8b949e; margin-bottom: 20px;">
-        Les poids déterminent l'importance de chaque composant dans le score final. 
+        Les poids déterminent l'importance de chaque formule dans le score final. 
         La somme doit être égale à 1.0.
     </p>
     
+    {% if not formulas %}
+    <div style="background: #382d1a; border: 1px solid #854d0e; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+        <p style="margin: 0; color: #fbbf24;">
+            ⚠️ Aucune formule n'est définie. Veuillez d'abord créer des formules dans la page 
+            <a href="{{ url_for('formulas_page') }}" style="color: #58a6ff;">Formules</a>.
+        </p>
+    </div>
+    {% else %}
     <form method="POST">
-        <div class="grid">
-            <div class="form-group">
-                <label for="drawdown90">Drawdown 90j</label>
-                <input type="number" id="drawdown90" name="drawdown90" 
-                       step="0.01" min="0" max="1" value="{{ weights.drawdown90 }}">
-            </div>
-            
-            <div class="form-group">
-                <label for="rsi14">RSI 14j</label>
-                <input type="number" id="rsi14" name="rsi14" 
-                       step="0.01" min="0" max="1" value="{{ weights.rsi14 }}">
-            </div>
-            
-            <div class="form-group">
-                <label for="dist_ma50">Distance MA50</label>
-                <input type="number" id="dist_ma50" name="dist_ma50" 
-                       step="0.01" min="0" max="1" value="{{ weights.dist_ma50 }}">
-            </div>
-            
-            <div class="form-group">
-                <label for="momentum30">Momentum 30j</label>
-                <input type="number" id="momentum30" name="momentum30" 
-                       step="0.01" min="0" max="1" value="{{ weights.momentum30 }}">
-            </div>
-            
-            <div class="form-group">
-                <label for="trend_ma200">Trend MA200</label>
-                <input type="number" id="trend_ma200" name="trend_ma200" 
-                       step="0.01" min="0" max="1" value="{{ weights.trend_ma200 }}">
-            </div>
-            
-            <div class="form-group">
-                <label for="volatility20">Volatilité 20j</label>
-                <input type="number" id="volatility20" name="volatility20" 
-                       step="0.01" min="0" max="1" value="{{ weights.volatility20 }}">
-            </div>
-        </div>
+        <table style="margin-bottom: 20px;">
+            <thead>
+                <tr>
+                    <th>Formule</th>
+                    <th>Description</th>
+                    <th style="width: 150px;">Poids</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for name, data in formulas.items() %}
+                <tr>
+                    <td><code>{{ name }}</code></td>
+                    <td style="color: #8b949e; font-size: 0.9em;">
+                        {{ data.description or data.formula[:50] + '...' if data.formula|length > 50 else data.formula }}
+                    </td>
+                    <td>
+                        <input type="number" name="weight_{{ name }}" 
+                               step="0.01" min="0" max="1" 
+                               value="{{ data.weight }}"
+                               style="width: 100%;">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
         
         <div class="stat" style="margin: 20px 0;">
-            <div class="stat-value">{{ total|round(2) }}</div>
+            <div class="stat-value" id="total-weight">{{ total|round(2) }}</div>
             <div class="stat-label">Total (doit être = 1.0)</div>
         </div>
         
         <button type="submit" class="btn">💾 Sauvegarder les poids</button>
+        <button type="button" class="btn btn-secondary" onclick="normalizeWeights()">
+            🔧 Normaliser automatiquement
+        </button>
     </form>
+    {% endif %}
 </div>
+
+<script>
+// Calculer le total en temps réel
+function updateTotal() {
+    let total = 0;
+    const inputs = document.querySelectorAll('input[name^="weight_"]');
+    inputs.forEach(input => {
+        total += parseFloat(input.value) || 0;
+    });
+    document.getElementById('total-weight').textContent = total.toFixed(2);
+    
+    // Colorer en rouge si différent de 1.0
+    if (Math.abs(total - 1.0) > 0.01) {
+        document.getElementById('total-weight').style.color = '#f85149';
+    } else {
+        document.getElementById('total-weight').style.color = '#3fb950';
+    }
+}
+
+// Normaliser les poids pour que la somme fasse 1.0
+function normalizeWeights() {
+    const inputs = document.querySelectorAll('input[name^="weight_"]');
+    let total = 0;
+    
+    inputs.forEach(input => {
+        total += parseFloat(input.value) || 0;
+    });
+    
+    if (total > 0) {
+        inputs.forEach(input => {
+            const currentValue = parseFloat(input.value) || 0;
+            input.value = (currentValue / total).toFixed(4);
+        });
+        updateTotal();
+    }
+}
+
+// Attacher l'événement de mise à jour
+document.addEventListener('DOMContentLoaded', function() {
+    const inputs = document.querySelectorAll('input[name^="weight_"]');
+    inputs.forEach(input => {
+        input.addEventListener('input', updateTotal);
+    });
+    updateTotal();
+});
+</script>
 {% endblock %}
