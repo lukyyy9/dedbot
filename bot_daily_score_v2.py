@@ -61,9 +61,6 @@ def build_discord_message(results: list):
         lines.append(f"## {ticker} — {product_name}")
         lines.append(f"**Score:** `{score}` {emoji}")
         lines.append(f"**Prix:** `{close:.2f}`")
-        lines.append(f"**RSI (Relative Strength Index):** `{rsi}`")
-        lines.append(f"**MA50 (50 days Mobile Average):**  `{ma50:.2f}`")
-        lines.append(f"**MA200 (200 days Mobile Average):** `{ma200:.2f}`")
         lines.append(f"")
 
     body = "\n".join(lines)

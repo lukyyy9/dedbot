@@ -10,54 +10,67 @@
         <p><strong>Période de données:</strong> {{ config.data_period }}</p>
         <p><strong>Timezone:</strong> {{ config.timezone }}</p>
         <p><strong>Tickers surveillés:</strong> {{ config.tickers|length }}</p>
+        <p><strong>Webhook Discord:</strong> {{ '✅ Configuré' if config.webhook_url else '❌ Non configuré' }}</p>
     </div>
     
     <div class="card">
-        <h2>📈 Poids des composants</h2>
-        <p><strong>Drawdown:</strong> {{ (config.weights.drawdown90 * 100)|round(1) }}%</p>
-        <p><strong>RSI:</strong> {{ (config.weights.rsi14 * 100)|round(1) }}%</p>
-        <p><strong>MA50:</strong> {{ (config.weights.dist_ma50 * 100)|round(1) }}%</p>
-        <p><strong>Momentum:</strong> {{ (config.weights.momentum30 * 100)|round(1) }}%</p>
-        <p><strong>Trend MA200:</strong> {{ (config.weights.trend_ma200 * 100)|round(1) }}%</p>
-        <p><strong>Volatilité:</strong> {{ (config.weights.volatility20 * 100)|round(1) }}%</p>
+        <h2>⚖️ Formules et poids</h2>
+        {% if formulas %}
+            <p style="margin-bottom: 10px;">
+                <strong>Total des poids:</strong> 
+                <span style="color: {% if (total_weight - 1.0)|abs < 0.01 %}#3fb950{% else %}#f85149{% endif %}">
+                    {{ total_weight|round(3) }}
+                </span>
+                {% if (total_weight - 1.0)|abs > 0.01 %}
+                <span style="color: #f85149; font-size: 0.9em;">⚠️ Devrait être 1.0</span>
+                {% endif %}
+            </p>
+            <table style="font-size: 0.9em;">
+                <thead>
+                    <tr>
+                        <th>Formule</th>
+                        <th style="text-align: right;">Poids</th>
+                        <th style="text-align: right;">Impact</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for name, data in formulas.items() %}
+                    <tr>
+                        <td><code>{{ name }}</code></td>
+                        <td style="text-align: right;">{{ data.weight|round(3) }}</td>
+                        <td style="text-align: right;">{{ (data.weight * 100)|round(1) }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p style="color: #f85149;">⚠️ Aucune formule configurée</p>
+            <p style="font-size: 0.9em; color: #8b949e;">
+                Veuillez créer des formules dans la page 
+                <a href="{{ url_for('formulas_page') }}" style="color: #58a6ff;">Formules</a>
+            </p>
+        {% endif %}
     </div>
 </div>
 
-<div class="card">
-    <h2>📜 Historique récent</h2>
-    {% if history %}
-    <table>
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Ticker</th>
-                <th>Score</th>
-                <th>Prix</th>
-                <th>RSI</th>
-                <th>MA50</th>
-                <th>MA200</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for entry in history %}
-            <tr>
-                <td>{{ entry.timestamp[:10] }}</td>
-                <td><strong>{{ entry.ticker }}</strong></td>
-                <td>
-                    <span class="{% if entry.score >= 55 %}score-good{% elif entry.score >= 45 %}score-warning{% else %}score-bad{% endif %}">
-                        {{ entry.score }}
-                    </span>
-                </td>
-                <td>{{ entry.close|round(2) }}</td>
-                <td>{{ entry.rsi14 }}</td>
-                <td>{{ entry.ma50|round(2) if entry.ma50 else 'N/A' }}</td>
-                <td>{{ entry.ma200|round(2) if entry.ma200 else 'N/A' }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <p style="color: #8b949e;">Aucun historique disponible</p>
-    {% endif %}
+<div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-top: 20px;">
+    <div class="stat">
+        <div class="stat-value">{{ formulas|length }}</div>
+        <div class="stat-label">Formules actives</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">{{ config.tickers|length }}</div>
+        <div class="stat-label">Tickers surveillés</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">{{ history|length }}</div>
+        <div class="stat-label">Entrées historiques</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value" style="color: {% if (total_weight - 1.0)|abs < 0.01 %}#3fb950{% else %}#f85149{% endif %}">
+            {{ total_weight|round(2) }}
+        </div>
+        <div class="stat-label">Total poids</div>
+    </div>
 </div>
 {% endblock %}

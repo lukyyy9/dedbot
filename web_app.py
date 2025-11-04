@@ -66,6 +66,10 @@ def index():
     """Page d'accueil - Dashboard."""
     config = config_manager.get_config()
     
+    # Récupérer les formules et leurs poids
+    formulas = config_manager.get_formulas()
+    total_weight = sum(data['weight'] for data in formulas.values())
+    
     # Lire l'historique récent
     history = []
     csv_path = config.get("output_csv", "/data/scores_history.csv")
@@ -78,7 +82,8 @@ def index():
         except Exception as e:
             logging.error(f"Erreur lors de la lecture de l'historique: {e}")
     
-    return render_template('index.html', config=config, history=history)
+    return render_template('index.html', config=config, formulas=formulas, 
+                         total_weight=total_weight, history=history)
 
 
 @app.route('/config', methods=['GET', 'POST'])
