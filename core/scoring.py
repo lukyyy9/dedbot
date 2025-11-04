@@ -31,13 +31,15 @@ class ScoringEngine:
         
         Args:
             config: Dictionnaire contenant:
-                - weights: poids des composants
+                - weights: poids des composants (fallback)
+                - formula_weights: poids des formules personnalisées (prioritaire)
                 - drawdown_cap: cap pour le drawdown
                 - volatility_cap: cap pour la volatilité
                 - formulas: formules personnalisées (optionnel)
         """
         self.config = config
         self.weights = config.get("weights", {})
+        self.formula_weights = config.get("formula_weights", {})
         self.drawdown_cap = config.get("drawdown_cap", 0.25)
         self.volatility_cap = config.get("volatility_cap", 0.10)
         
@@ -219,14 +221,14 @@ class ScoringEngine:
         trend_sc = self.score_trend_ma200(close, ma200)
         vol_sc = self.score_volatility(vol20)
 
-        # Score composite
+        # Score composite - utiliser formula_weights si disponible, sinon weights par défaut
         composite = (
-            self.weights.get("drawdown90", 0.25) * draw_sc
-            + self.weights.get("rsi14", 0.25) * rsi_sc
-            + self.weights.get("dist_ma50", 0.20) * ma50_sc
-            + self.weights.get("momentum30", 0.15) * mom_sc
-            + self.weights.get("trend_ma200", 0.10) * trend_sc
-            + self.weights.get("volatility20", 0.05) * vol_sc
+            self.formula_weights.get("drawdown90", self.weights.get("drawdown90", 0.25)) * draw_sc
+            + self.formula_weights.get("rsi14", self.weights.get("rsi14", 0.25)) * rsi_sc
+            + self.formula_weights.get("dist_ma50", self.weights.get("dist_ma50", 0.20)) * ma50_sc
+            + self.formula_weights.get("momentum30", self.weights.get("momentum30", 0.15)) * mom_sc
+            + self.formula_weights.get("trend_ma200", self.weights.get("trend_ma200", 0.10)) * trend_sc
+            + self.formula_weights.get("volatility20", self.weights.get("volatility20", 0.05)) * vol_sc
         )
 
         score_100 = round(100.0 * composite, 1)
@@ -294,13 +296,14 @@ class ScoringEngine:
         trend_sc = self.score_trend_ma200(close, ma200)
         vol_sc = self.score_volatility(vol20)
         
+        # Score composite - utiliser formula_weights si disponible, sinon weights par défaut
         composite = (
-            self.weights.get("drawdown90", 0.25) * draw_sc
-            + self.weights.get("rsi14", 0.25) * rsi_sc
-            + self.weights.get("dist_ma50", 0.20) * ma50_sc
-            + self.weights.get("momentum30", 0.15) * mom_sc
-            + self.weights.get("trend_ma200", 0.10) * trend_sc
-            + self.weights.get("volatility20", 0.05) * vol_sc
+            self.formula_weights.get("drawdown90", self.weights.get("drawdown90", 0.25)) * draw_sc
+            + self.formula_weights.get("rsi14", self.weights.get("rsi14", 0.25)) * rsi_sc
+            + self.formula_weights.get("dist_ma50", self.weights.get("dist_ma50", 0.20)) * ma50_sc
+            + self.formula_weights.get("momentum30", self.weights.get("momentum30", 0.15)) * mom_sc
+            + self.formula_weights.get("trend_ma200", self.weights.get("trend_ma200", 0.10)) * trend_sc
+            + self.formula_weights.get("volatility20", self.weights.get("volatility20", 0.05)) * vol_sc
         )
         
         return {
