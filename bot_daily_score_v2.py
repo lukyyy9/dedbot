@@ -213,11 +213,11 @@ def main():
     # Configurer le logging
     setup_logging(config.get("log_file", "/data/bot_daily_score.log"))
 
-    # Vérifier la configuration
+    # Vérifier la configuration (warning seulement, pas d'arrêt)
     webhook = config.get("webhook_url", "")
     if not webhook or "discord.com/api/webhooks" not in str(webhook):
-        logging.error("webhook_url invalide ou absente. Halte.")
-        sys.exit(2)
+        logging.warning("⚠️ webhook_url invalide ou absente. Les messages ne seront pas envoyés sur Discord.")
+        logging.warning("Veuillez configurer le webhook via l'interface web à http://localhost:5001")
 
     # Enregistrer les signaux
     signal.signal(signal.SIGTERM, shutdown)
