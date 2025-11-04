@@ -1,5 +1,26 @@
 {% extends "base.html" %}
 
+{% block extra_css %}
+<style>
+    .backtest-table {
+        font-size: 12px;
+    }
+    
+    .backtest-table th,
+    .backtest-table td {
+        padding: 8px 10px;
+        white-space: nowrap;
+    }
+    
+    .backtest-table th {
+        position: sticky;
+        top: 0;
+        background: #161b22;
+        z-index: 10;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="card">
     <h2>📊 Résultats du Backtest</h2>
@@ -99,38 +120,86 @@
 <div class="card">
     <h3 style="color: #58a6ff;">📋 Détails des Signaux</h3>
     
-    <table>
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Ticker</th>
-                <th>Score</th>
-                <th>Prix</th>
-                <th>RSI</th>
-                <th>Rendement 30j</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for result in results[-100:] %}
-            <tr>
-                <td>{{ result.date.strftime('%Y-%m-%d') if result.date else 'N/A' }}</td>
-                <td><strong>{{ result.ticker }}</strong></td>
-                <td>
-                    <span class="{% if result.score >= 55 %}score-good{% elif result.score >= 45 %}score-warning{% else %}score-bad{% endif %}">
-                        {{ result.score }}
-                    </span>
-                </td>
-                <td>{{ result.close|round(2) }}</td>
-                <td>{{ result.rsi14 }}</td>
-                <td>
-                    <span class="{% if result.return_30d > 0 %}score-good{% else %}score-bad{% endif %}">
-                        {{ result.return_30d }}%
-                    </span>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div style="overflow-x: auto;">
+        <table class="backtest-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Ticker</th>
+                    <th>Score Total</th>
+                    <th>Prix</th>
+                    <th>RSI14</th>
+                    <th>MA50</th>
+                    <th>MA200</th>
+                    <th>Drawdown 90j</th>
+                    <th>Volatilité 20j</th>
+                    <th>Momentum 30j</th>
+                    <th>Score Drawdown</th>
+                    <th>Score RSI</th>
+                    <th>Score MA50</th>
+                    <th>Score Momentum</th>
+                    <th>Score Trend</th>
+                    <th>Score Vol</th>
+                    <th>Rendement 30j</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in results[-100:] %}
+                <tr>
+                    <td>{{ result.date.strftime('%Y-%m-%d') if result.date else 'N/A' }}</td>
+                    <td><strong>{{ result.ticker }}</strong></td>
+                    <td>
+                        <span class="{% if result.score >= 55 %}score-good{% elif result.score >= 45 %}score-warning{% else %}score-bad{% endif %}">
+                            {{ result.score }}
+                        </span>
+                    </td>
+                    <td>{{ result.close|round(2) }}</td>
+                    <td>{{ result.rsi14 }}</td>
+                    <td>{{ result.ma50|round(2) if result.ma50 else 'N/A' }}</td>
+                    <td>{{ result.ma200|round(2) if result.ma200 else 'N/A' }}</td>
+                    <td>{{ result.drawdown90_pct }}%</td>
+                    <td>{{ result.vol20_pct }}%</td>
+                    <td>{{ result.momentum30_pct }}%</td>
+                    <td>
+                        <span class="{% if result.score_drawdown >= 55 %}score-good{% elif result.score_drawdown >= 45 %}score-warning{% else %}score-bad{% endif %}">
+                            {{ result.score_drawdown }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="{% if result.score_rsi >= 55 %}score-good{% elif result.score_rsi >= 45 %}score-warning{% else %}score-bad{% endif %}">
+                            {{ result.score_rsi }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="{% if result.score_ma50 >= 55 %}score-good{% elif result.score_ma50 >= 45 %}score-warning{% else %}score-bad{% endif %}">
+                            {{ result.score_ma50 }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="{% if result.score_momentum >= 55 %}score-good{% elif result.score_momentum >= 45 %}score-warning{% else %}score-bad{% endif %}">
+                            {{ result.score_momentum }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="{% if result.score_trend >= 55 %}score-good{% elif result.score_trend >= 45 %}score-warning{% else %}score-bad{% endif %}">
+                            {{ result.score_trend }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="{% if result.score_volatility >= 55 %}score-good{% elif result.score_volatility >= 45 %}score-warning{% else %}score-bad{% endif %}">
+                            {{ result.score_volatility }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="{% if result.return_30d > 0 %}score-good{% else %}score-bad{% endif %}">
+                            {{ result.return_30d }}%
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     
     {% if results|length > 100 %}
     <p style="margin-top: 15px; color: #8b949e;">

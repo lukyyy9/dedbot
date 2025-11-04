@@ -309,5 +309,14 @@ class ScoringEngine:
             "close": close,
             "rsi14": round(rsi14, 2),
             "ma50": ma50,
-            "ma200": ma200
+            "ma200": ma200,
+            "drawdown90_pct": round(drawdown90 * 100.0, 2),
+            "vol20_pct": round(vol20 * 100.0, 2),
+            "momentum30_pct": round(momentum30 * 100.0, 2),
+            "score_drawdown": round(draw_sc * 100, 1),
+            "score_rsi": round(rsi_sc * 100, 1),
+            "score_ma50": round(ma50_sc * 100, 1),
+            "score_momentum": round(mom_sc * 100, 1),
+            "score_trend": round(trend_sc * 100, 1),
+            "score_volatility": round(vol_sc * 100, 1)
         }
