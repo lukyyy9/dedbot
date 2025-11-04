@@ -2,7 +2,7 @@ version: '3.8'
 services:
   # Bot DCA - Service principal
   dca-bot:
-    image: imluky/dca-entry-discord-bot:v2
+    image: imluky/dca-entry-discord-bot:latest
     container_name: dca-bot
     restart: unless-stopped
     volumes:
@@ -22,7 +22,7 @@ services:
   
   # Interface Web d'Administration
   dca-web:
-    image: imluky/dca-entry-discord-bot:v2
+    image: imluky/dca-entry-discord-bot:latest
     container_name: dca-web
     restart: unless-stopped
     ports:
