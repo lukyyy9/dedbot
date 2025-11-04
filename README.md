@@ -6,15 +6,16 @@ A sophisticated Discord bot that calculates daily Dollar Cost Averaging (DCA) en
 
 - **Automated Daily Scoring**: Calculates entry signals for multiple tickers based on your custom formulas
 - **Discord Notifications**: Sends daily score updates to Discord via webhooks with formatted messages and alerts
-- **Web Administration Interface**: Full-featured web UI for managing everything - tickers, weights, formulas, and configuration
+- **Web Administration Interface**: Full-featured web UI for managing everything - tickers, weights, formulas, and configuration (no need to edit config files!)
 - **Backtesting Engine**: Historical performance analysis with visual results and detailed metrics
-- **Fully Customizable Scoring**: 
+- **Fully Customizable Scoring**:
   - Define your own Python-based scoring formulas
   - Adjust component weights dynamically
   - Access to technical indicators (RSI, MA, momentum, volatility, etc.)
   - Real-time formula validation and preview
+- **Minimal Configuration**: Only admin token required in `config.yaml` - everything else (including webhook) via web UI
 - **Docker Support**: Fully containerized deployment with Docker Compose
-- **Historical Data Tracking**: Persistent storage of daily scores in CSV format
+- **Historical Data Tracking**: Persistent storage of daily scores in CSV format and SQLite database
 
 ## 📋 Prerequisites
 
@@ -32,32 +33,13 @@ cd DEDBot
 
 ### 2. Configure the Bot
 
-Create or edit `config.yaml` with your settings:
+Create a minimal `config.yaml` with only the admin token:
 
 ```yaml
-webhook_url: "YOUR_DISCORD_WEBHOOK_URL"
-
-# List of ETF/stock tickers to monitor
-tickers: []
-
-# Historical data period
-data_period: "365d"
-
-# Normalization caps
-drawdown_cap: 0.25
-volatility_cap: 0.10
-
-# Output files (must point to /data)
-output_csv: "/data/scores_history.csv"
-log_file: "/data/bot_daily_score.log"
-
-# Admin tokens for web interface
+# Admin token for web interface access
 admin:
   admin_tokens:
     - "your-secure-admin-token-here"
-
-# Timezone for scheduler
-timezone: "UTC"
 ```
 
 ### 3. Create Data Directory
@@ -86,18 +68,31 @@ docker-compose up -d
 The project consists of two main services:
 
 ### 1. DCA Bot (`dca-bot`)
+
 - Runs scheduled daily scoring calculations
 - Fetches market data from Yahoo Finance
-- Calculates technical indicators
+- Calculates technical indicators using your custom formulas
 - Sends notifications to Discord
-- Logs results to CSV
+- Logs results to CSV and SQLite database
 
 ### 2. Web Interface (`dca-web`)
+
 - Admin authentication system
-- Configuration management (tickers, weights, formulas)
+- **Database-driven configuration management** (no file editing required)
+- Real-time configuration updates (tickers, weights, formulas, caps)
 - Live scoring preview
 - Backtesting interface with visual results
 - Runs on port 5001
+
+### Configuration Storage
+
+- **config.yaml**: Minimal bootstrap settings (admin tokens only - webhook optional)
+- **SQLite Database** (`/data/bot_config.db`): All runtime configuration
+  - Discord webhook URL
+  - Tickers list
+  - Custom formulas
+  - Component weights
+  - System settings (caps, periods, etc.)
 
 ## 📊 Scoring System
 
@@ -143,10 +138,13 @@ Access the web interface at `http://localhost:5001`
 ### Features
 
 - **Dashboard**: Overview of current configuration and recent scores
-- **Tickers Management**: Add/remove ETFs and stocks to monitor
+- **Tickers Management**: Add/remove ETFs and stocks to monitor (no config.yaml editing needed)
 - **Weights Configuration**: Adjust scoring component weights in real-time
 - **Formulas Editor**: Create and manage custom Python scoring formulas with syntax validation
+- **Configuration Editor**: Modify caps, periods, and other settings through the UI
 - **Backtest**: Historical performance analysis with visual charts and metrics
+
+All configuration changes are stored in a SQLite database (`/data/bot_config.db`) and take effect immediately.
 
 ### Authentication
 
