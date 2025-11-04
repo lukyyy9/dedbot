@@ -9,7 +9,7 @@ services:
       - ./data:/data
     environment:
       - TZ=UTC
-      - DEV=true  # "false" = 1x par jour, "true" = 1x par minute
+      - DEV=false  # "false" = 1x par jour, "true" = 1x par minute
     tmpfs:
       - /tmp:rw,size=64m
     logging:

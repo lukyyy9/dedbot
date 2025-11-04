@@ -140,6 +140,16 @@ def score_volatility(vol20: float, cap: float) -> float:
 
 def compute_scores_for_ticker(ticker: str, cfg: dict):
     period = cfg.get("data_period", "365d")
+    
+    # Récupérer le nom du produit
+    product_name = ticker  # fallback
+    try:
+        ticker_info = yf.Ticker(ticker)
+        info = ticker_info.info
+        product_name = info.get("longName") or info.get("shortName") or ticker
+    except Exception as e:
+        logging.warning("Impossible de récupérer le nom du produit pour %s: %s", ticker, e)
+    
     try:
         df = yf.download(ticker, period=period, interval="1d", progress=False)
     except Exception as e:
@@ -195,6 +205,7 @@ def compute_scores_for_ticker(ticker: str, cfg: dict):
 
     return {
         "ticker": ticker,
+        "product_name": product_name,
         "score": score_100,
         "close": close,
         "ma50": ma50,
@@ -216,20 +227,40 @@ def compute_scores_for_ticker(ticker: str, cfg: dict):
 
 # ---------- DISCORD MESSAGE ----------
 
+def get_score_emoji(score: float) -> str:
+    """Retourne l'emoji correspondant au score."""
+    if score < 45:
+        return "❌"
+    elif score < 55:
+        return "⚠️"
+    else:
+        return "✅"
+
 def build_discord_message(results: list):
     date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    header = f"📊 **Score DCA quotidien — {date} (après clôture)**\n"
-    header += "```\n"
-    header += f"{'Ticker':<8}{'Score':<8}{'RSI':<8}{'Prix':<10}{'MA50':<10}{'MA200':<10}\n"
-    header += "-" * 64 + "\n"
+    header = f"# 📊 Score DCA quotidien — {date}\n\n"
+    
     lines = []
     for r in results:
-        lines.append(
-            f"{r['ticker']:<8}{r['score']:<8}{r['rsi14']:<8}{r['close']:<10.2f}{(r['ma50'] or 0):<10.2f}{(r['ma200'] or 0):<10.2f}"
-        )
+        ticker = r['ticker']
+        product_name = r.get('product_name', ticker)
+        score = r['score']
+        rsi = r['rsi14']
+        close = r['close']
+        ma50 = r['ma50'] or 0
+        ma200 = r['ma200'] or 0
+        emoji = get_score_emoji(score)
+        
+        lines.append(f"## {ticker} — {product_name}")
+        lines.append(f"**Score:** `{score}` {emoji}")
+        lines.append(f"**Prix:** `{close:.2f}`")
+        lines.append(f"**RSI (Relative Strength Index):** `{rsi}`")
+        lines.append(f"**MA50 (50 days Mobile Average):**  `{ma50:.2f}`")
+        lines.append(f"**MA200 (200 days Mobile Average):** `{ma200:.2f}`")
+        lines.append(f"")
+
     body = "\n".join(lines)
-    footer = "\n```\n💡 Plus le score est élevé, plus le point d'entrée DCA est intéressant (0–100).\n"
-    footer += "_Ceci n'est pas un conseil financier. Faites vos propres vérifications._"
+    footer = "\n_Ceci n'est pas un conseil financier._\n"
     return header + body + footer
 
 
