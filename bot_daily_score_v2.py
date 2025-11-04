@@ -161,21 +161,24 @@ def start_scheduler(config_manager: ConfigManager):
     global scheduler
     
     config = config_manager.get_config()
-    timezone_str = config.get("timezone", "UTC")
+    # Utiliser le fuseau horaire de Paris
+    timezone_str = "Europe/Paris"
     
     scheduler = BlockingScheduler(timezone=timezone_str)
 
     # Mode dev ou production
-    dev_mode = config.get("dev_mode", False) or os.getenv("DEV", "false").lower() in ("true", "1", "yes")
+    dev_mode = os.getenv("DEV", "false").lower() in ("true", "1", "yes")
     
     if dev_mode:
         # Mode DEV: exécution toutes les minutes
         trigger = CronTrigger(minute='*', timezone=timezone_str)
         logging.info("🔧 MODE DEV ACTIVÉ: Scheduler programmé toutes les minutes")
     else:
-        # Mode production: 22:10 UTC du lundi au vendredi
-        trigger = CronTrigger(hour=22, minute=10, day_of_week='mon-fri', timezone=timezone_str)
-        logging.info("Scheduler programmé: tous les jours ouvrés 22:10 %s", timezone_str)
+        # Mode production: heure configurable (par défaut 22:10) heure de Paris du lundi au vendredi
+        schedule_hour = config.get("schedule_hour", 22)
+        schedule_minute = config.get("schedule_minute", 10)
+        trigger = CronTrigger(hour=schedule_hour, minute=schedule_minute, day_of_week='mon-fri', timezone=timezone_str)
+        logging.info("Scheduler programmé: tous les jours ouvrés %02d:%02d %s", schedule_hour, schedule_minute, timezone_str)
     
     scheduler.add_job(lambda: daily_job(config_manager), trigger, name="daily_score_job")
 

@@ -6,7 +6,6 @@
 <div class="grid">
     <div class="card">
         <h2>⚙️ Configuration actuelle</h2>
-        <p><strong>Mode Dev:</strong> {{ '✅ Activé' if config.dev_mode else '❌ Désactivé' }}</p>
         <p><strong>Période de données:</strong> {{ config.data_period }}</p>
         <p><strong>Timezone:</strong> {{ config.timezone }}</p>
         <p><strong>Tickers surveillés:</strong> {{ config.tickers|length }}</p>

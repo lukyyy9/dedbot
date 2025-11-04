@@ -13,10 +13,17 @@
         </div>
         
         <div class="form-group">
-            <label>
-                <input type="checkbox" name="dev_mode" {% if config.dev_mode %}checked{% endif %}>
-                Mode Développement (exécution toutes les minutes au lieu de 22:10 UTC)
-            </label>
+            <label for="schedule_hour">Heure de post quotidien (heure de Paris)</label>
+            <input type="number" id="schedule_hour" name="schedule_hour" 
+                   min="0" max="23" value="{{ config.schedule_hour|default(22) }}">
+            <small style="color: #8b949e;">Heure d'envoi du message quotidien (0-23, heure de Paris)</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="schedule_minute">Minute de post quotidien</label>
+            <input type="number" id="schedule_minute" name="schedule_minute" 
+                   min="0" max="59" value="{{ config.schedule_minute|default(10) }}">
+            <small style="color: #8b949e;">Minute d'envoi du message quotidien (0-59)</small>
         </div>
         
         <div class="form-group">

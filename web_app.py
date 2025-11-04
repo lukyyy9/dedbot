@@ -97,9 +97,12 @@ def config_page():
             if webhook_url:
                 config_manager.set_config_value('webhook_url', webhook_url, "Discord Webhook URL")
             
-            # Mode dev
-            dev_mode = request.form.get('dev_mode') == 'on'
-            config_manager.set_config_value('dev_mode', dev_mode, "Mode développement")
+            # Schedule time
+            schedule_hour = int(request.form.get('schedule_hour', 18))
+            config_manager.set_config_value('schedule_hour', schedule_hour, "Heure de post quotidien")
+            
+            schedule_minute = int(request.form.get('schedule_minute', 00))
+            config_manager.set_config_value('schedule_minute', schedule_minute, "Minute de post quotidien")
             
             # Data period
             data_period = request.form.get('data_period')

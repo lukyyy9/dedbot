@@ -95,8 +95,10 @@ class ConfigManager:
         config.setdefault("volatility_cap", 0.10)
         config.setdefault("output_csv", "/data/scores_history.csv")
         config.setdefault("log_file", "/data/bot_daily_score.log")
-        config.setdefault("timezone", "UTC")
+        config.setdefault("timezone", "Europe/Paris")
         config.setdefault("dev_mode", False)
+        config.setdefault("schedule_hour", 22)
+        config.setdefault("schedule_minute", 10)
         
         if "weights" not in config:
             config["weights"] = {}
