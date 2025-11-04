@@ -4,15 +4,15 @@ A sophisticated Discord bot that calculates daily Dollar Cost Averaging (DCA) en
 
 ## 🚀 Features
 
-- **Automated Daily Scoring**: Calculates entry signals for multiple tickers based on configurable technical indicators
+- **Automated Daily Scoring**: Calculates entry signals for multiple tickers based on your custom formulas
 - **Discord Notifications**: Sends daily score updates to Discord via webhooks with formatted messages and alerts
-- **Web Administration Interface**: Full-featured web UI for managing configuration, tickers, weights, and formulas
-- **Backtesting Engine**: Historical performance analysis with visual results
-- **Configurable Scoring**: Customizable weights and formulas for:
-  - Drawdown (distance from all-time high)
-  - Volatility (30-day standard deviation)
-  - RSI (Relative Strength Index)
-  - Price momentum
+- **Web Administration Interface**: Full-featured web UI for managing everything - tickers, weights, formulas, and configuration
+- **Backtesting Engine**: Historical performance analysis with visual results and detailed metrics
+- **Fully Customizable Scoring**: 
+  - Define your own Python-based scoring formulas
+  - Adjust component weights dynamically
+  - Access to technical indicators (RSI, MA, momentum, volatility, etc.)
+  - Real-time formula validation and preview
 - **Docker Support**: Fully containerized deployment with Docker Compose
 - **Historical Data Tracking**: Persistent storage of daily scores in CSV format
 
@@ -99,16 +99,36 @@ The project consists of two main services:
 - Backtesting interface with visual results
 - Runs on port 5001
 
-## 📊 Scoring Components
+## 📊 Scoring System
 
-The bot calculates a composite score (0-100) based on:
+The bot calculates a composite score (0-100) based on **fully customizable formulas and weights**. All scoring components are user-managed through the web interface.
 
-| Component | Description | Weight (default) |
-|-----------|-------------|------------------|
-| **Drawdown** | Distance from all-time high (capped at 25%) | Configurable |
-| **Volatility** | 30-day price volatility (capped at 10%) | Configurable |
-| **RSI** | Relative Strength Index (14-period) | Configurable |
-| **Momentum** | Recent price momentum | Configurable |
+### User-Configurable Components
+
+The scoring system is entirely flexible - you define:
+
+1. **Custom Formulas**: Create scoring formulas using Python expressions
+2. **Component Weights**: Adjust the importance of each component
+3. **Available Variables**: 
+   - `drawdown` - Distance from all-time high
+   - `rsi` - Relative Strength Index
+   - `close`, `ma50`, `ma200` - Price and moving averages
+   - `momentum` - Price momentum
+   - `vol20` - 20-day volatility
+   - `np` - NumPy functions (clip, exp, etc.)
+
+### Example Formulas
+
+```python
+# RSI-based scoring (oversold = opportunity)
+np.clip((70.0 - rsi) / 40.0, 0.0, 1.0)
+
+# Drawdown scoring
+min(drawdown / cap, 1.0)
+
+# Distance from MA50
+np.clip((ma50 - close) / ma50 / 0.15, 0.0, 1.0)
+```
 
 ### Score Interpretation
 
@@ -120,12 +140,13 @@ The bot calculates a composite score (0-100) based on:
 
 Access the web interface at `http://localhost:5001`
 
-### Features:
+### Features
+
 - **Dashboard**: Overview of current configuration and recent scores
 - **Tickers Management**: Add/remove ETFs and stocks to monitor
-- **Weights Configuration**: Adjust scoring component weights
-- **Formulas Customization**: Define custom scoring formulas
-- **Backtest**: Historical performance analysis with visual charts
+- **Weights Configuration**: Adjust scoring component weights in real-time
+- **Formulas Editor**: Create and manage custom Python scoring formulas with syntax validation
+- **Backtest**: Historical performance analysis with visual charts and metrics
 
 ### Authentication
 
