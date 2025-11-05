@@ -154,30 +154,6 @@ All configuration changes are stored in a SQLite database (`/data/bot_config.db`
 
 Use one of the admin tokens defined in `config.yaml` to access the interface.
 
-### 📁 Using Weight Profiles
-
-Weight profiles allow you to save and manage multiple weight configurations, making it easy to test different strategies:
-
-**Creating a Profile:**
-1. Navigate to the **Weights** page
-2. Click **➕ Nouveau Profil**
-3. Enter a name and description for your profile
-4. The current weights will be saved to the new profile
-
-**Managing Profiles:**
-- **✓ Activer**: Load the weights from this profile into the active configuration
-- **💾 Sauv.**: Save the current weights to this profile (overwrite)
-- **✏️**: Edit the profile name and description
-- **🗑️**: Delete the profile (only for inactive profiles)
-
-**Use Cases:**
-- **Conservative Profile**: Higher weights on drawdown and volatility for safer entries
-- **Aggressive Profile**: Focus on momentum and trend indicators
-- **Testing Profile**: Experiment with new weight distributions without losing your proven configuration
-- **Seasonal Profiles**: Different strategies for different market conditions
-
-**Note:** Only one profile can be active at a time. The active profile's weights are automatically loaded into the formulas.
-
 ## 🐳 Docker Configuration
 
 ### Environment Variables
@@ -219,47 +195,6 @@ Weight profiles allow you to save and manage multiple weight configurations, mak
     ├── backtest_results.csv
     └── bot_daily_score.log
 ```
-
-## 🔧 Development
-
-### Running Locally (without Docker)
-
-1. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-2. Run the bot:
-```bash
-python bot_daily_score_v2.py
-```
-
-3. Run the web interface:
-```bash
-python web_app.py
-```
-
-### Development Mode
-
-Set `DEV=true` in docker-compose.yml to run scoring every minute instead of daily (useful for testing).
-
-## 📊 Data Sources
-
-- **Market Data**: Yahoo Finance (via yfinance library)
-- **Supported Assets**: Any ticker available on Yahoo Finance (stocks, ETFs, crypto, etc.)
-
-## 🔐 Security Notes
-
-- Change default admin tokens in production
-- Set a secure `SECRET_KEY` for the web interface
-- Keep `config.yaml` private (contains webhook URLs)
-- Use HTTPS in production environments
-
-## 📝 Logging
-
-Logs are stored in:
-- Bot logs: `data/bot_daily_score.log`
-- Docker logs: Use `docker-compose logs -f` to follow logs
 
 ## 🤝 Contributing
 
