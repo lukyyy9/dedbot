@@ -18,6 +18,9 @@
         background: #161b22;
         z-index: 10;
     }
+    .container {
+        max-width: 95vw;
+    }
 </style>
 {% endblock %}
 
@@ -134,12 +137,13 @@
                     <th>Drawdown 90j</th>
                     <th>Volatilité 20j</th>
                     <th>Momentum 30j</th>
-                    <th>Score Drawdown</th>
-                    <th>Score RSI</th>
-                    <th>Score MA50</th>
-                    <th>Score Momentum</th>
-                    <th>Score Trend</th>
-                    <th>Score Vol</th>
+                    {% if results %}
+                        {% for key in results[0].keys() %}
+                            {% if key.startswith('score_') and key != 'score_category' %}
+                            <th>{{ key.replace('score_', 'Score ').title() }}</th>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
                     <th>Rendement 30j</th>
                 </tr>
             </thead>
@@ -160,36 +164,15 @@
                     <td>{{ result.drawdown90_pct }}%</td>
                     <td>{{ result.vol20_pct }}%</td>
                     <td>{{ result.momentum30_pct }}%</td>
-                    <td>
-                        <span class="{% if result.score_drawdown >= 55 %}score-good{% elif result.score_drawdown >= 45 %}score-warning{% else %}score-bad{% endif %}">
-                            {{ result.score_drawdown }}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="{% if result.score_rsi >= 55 %}score-good{% elif result.score_rsi >= 45 %}score-warning{% else %}score-bad{% endif %}">
-                            {{ result.score_rsi }}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="{% if result.score_ma50 >= 55 %}score-good{% elif result.score_ma50 >= 45 %}score-warning{% else %}score-bad{% endif %}">
-                            {{ result.score_ma50 }}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="{% if result.score_momentum >= 55 %}score-good{% elif result.score_momentum >= 45 %}score-warning{% else %}score-bad{% endif %}">
-                            {{ result.score_momentum }}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="{% if result.score_trend >= 55 %}score-good{% elif result.score_trend >= 45 %}score-warning{% else %}score-bad{% endif %}">
-                            {{ result.score_trend }}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="{% if result.score_volatility >= 55 %}score-good{% elif result.score_volatility >= 45 %}score-warning{% else %}score-bad{% endif %}">
-                            {{ result.score_volatility }}
-                        </span>
-                    </td>
+                    {% for key in result.keys() %}
+                        {% if key.startswith('score_') and key != 'score_category' %}
+                        <td>
+                            <span class="{% if result[key] >= 55 %}score-good{% elif result[key] >= 45 %}score-warning{% else %}score-bad{% endif %}">
+                                {{ result[key] }}
+                            </span>
+                        </td>
+                        {% endif %}
+                    {% endfor %}
                     <td>
                         <span class="{% if result.return_30d > 0 %}score-good{% else %}score-bad{% endif %}">
                             {{ result.return_30d }}%

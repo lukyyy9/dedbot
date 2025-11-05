@@ -23,7 +23,7 @@ def compute_rsi(series: pd.Series, period: int = 14) -> pd.Series:
 
 
 class ScoringEngine:
-    """Moteur de scoring configurable via base de données."""
+    """Moteur de scoring dynamique configurable via base de données."""
     
     def __init__(self, config: Dict):
         """
@@ -31,138 +31,72 @@ class ScoringEngine:
         
         Args:
             config: Dictionnaire contenant:
-                - weights: poids des composants (fallback)
-                - formula_weights: poids des formules personnalisées (prioritaire)
+                - formulas: formules personnalisées (Dict[str, str])
+                - formula_weights: poids des formules personnalisées (Dict[str, float])
                 - drawdown_cap: cap pour le drawdown
                 - volatility_cap: cap pour la volatilité
-                - formulas: formules personnalisées (optionnel)
         """
         self.config = config
-        self.weights = config.get("weights", {})
-        self.formula_weights = config.get("formula_weights", {})
         self.drawdown_cap = config.get("drawdown_cap", 0.25)
         self.volatility_cap = config.get("volatility_cap", 0.10)
         
-        # Support des formules personnalisées (V2)
+        # Formules personnalisées définies par l'utilisateur
         self.formulas = config.get("formulas", {})
-    
-    def score_drawdown(self, drawdown: float) -> float:
-        """Score basé sur le drawdown (baisse depuis le plus haut)."""
-        if "drawdown" in self.formulas:
-            # Utiliser la formule personnalisée
-            try:
-                return eval(self.formulas["drawdown"], {
-                    "drawdown": drawdown,
-                    "cap": self.drawdown_cap,
-                    "np": np,
-                    "min": min,
-                    "max": max
-                })
-            except Exception as e:
-                logging.error(f"Erreur dans formule drawdown: {e}")
+        self.formula_weights = config.get("formula_weights", {})
         
-        # Formule par défaut
-        if drawdown <= 0:
+        # Log des formules chargées
+        if self.formulas:
+            logging.info(f"✅ Moteur de scoring initialisé avec {len(self.formulas)} formules personnalisées")
+            for name, weight in self.formula_weights.items():
+                if name in self.formulas:
+                    logging.info(f"  - {name}: poids={weight}")
+        else:
+            logging.warning("⚠️ Aucune formule personnalisée définie. Le scoring retournera 0.")
+    
+    def evaluate_formula(self, formula_name: str, variables: Dict) -> float:
+        """
+        Évalue une formule personnalisée avec les variables données.
+        
+        Args:
+            formula_name: Nom de la formule à évaluer
+            variables: Dictionnaire des variables disponibles pour la formule
+            
+        Returns:
+            Score entre 0.0 et 1.0, ou 0.0 en cas d'erreur
+        """
+        if formula_name not in self.formulas:
             return 0.0
-        return min(drawdown / self.drawdown_cap, 1.0)
-    
-    def score_rsi(self, rsi: float) -> float:
-        """Score basé sur le RSI (survente = opportunité)."""
-        if "rsi" in self.formulas:
-            try:
-                return eval(self.formulas["rsi"], {
-                    "rsi": rsi,
-                    "np": np,
-                    "min": min,
-                    "max": max
-                })
-            except Exception as e:
-                logging.error(f"Erreur dans formule RSI: {e}")
         
-        # Formule par défaut
-        val = (70.0 - rsi) / 40.0
-        return float(np.clip(val, 0.0, 1.0))
-    
-    def score_dist_ma50(self, close: float, ma50: float) -> float:
-        """Score basé sur la distance à la MA50."""
-        if "dist_ma50" in self.formulas:
-            try:
-                return eval(self.formulas["dist_ma50"], {
-                    "close": close,
-                    "ma50": ma50,
-                    "np": np,
-                    "min": min,
-                    "max": max
-                })
-            except Exception as e:
-                logging.error(f"Erreur dans formule dist_ma50: {e}")
+        formula = self.formulas[formula_name]
         
-        # Formule par défaut
-        if np.isnan(ma50) or ma50 == 0:
+        # Contexte d'évaluation sécurisé
+        eval_context = {
+            "np": np,
+            "min": min,
+            "max": max,
+            "abs": abs,
+            "exp": np.exp,
+            "log": np.log,
+            "sqrt": np.sqrt,
+            "cap": self.drawdown_cap,
+            "drawdown_cap": self.drawdown_cap,
+            "volatility_cap": self.volatility_cap,
+            **variables
+        }
+        
+        try:
+            result = eval(formula, {"__builtins__": {}}, eval_context)
+            # S'assurer que le résultat est entre 0 et 1
+            return float(np.clip(result, 0.0, 1.0))
+        except Exception as e:
+            logging.error(f"❌ Erreur dans formule '{formula_name}': {e}")
+            logging.debug(f"   Formule: {formula}")
+            logging.debug(f"   Variables: {variables}")
             return 0.0
-        dist = 1.0 - (close / ma50)
-        return float(np.clip(dist, 0.0, 1.0))
-    
-    def score_momentum(self, momentum: float) -> float:
-        """Score basé sur le momentum (négatif = opportunité)."""
-        if "momentum" in self.formulas:
-            try:
-                return eval(self.formulas["momentum"], {
-                    "momentum": momentum,
-                    "np": np,
-                    "min": min,
-                    "max": max,
-                    "exp": np.exp
-                })
-            except Exception as e:
-                logging.error(f"Erreur dans formule momentum: {e}")
-        
-        # Formule par défaut
-        k = 6.0
-        s = 1.0 / (1.0 + np.exp(k * momentum))
-        return float(np.clip(s, 0.0, 1.0))
-    
-    def score_trend_ma200(self, close: float, ma200: float) -> float:
-        """Score basé sur la tendance MA200."""
-        if "trend_ma200" in self.formulas:
-            try:
-                return eval(self.formulas["trend_ma200"], {
-                    "close": close,
-                    "ma200": ma200,
-                    "np": np,
-                    "min": min,
-                    "max": max
-                })
-            except Exception as e:
-                logging.error(f"Erreur dans formule trend_ma200: {e}")
-        
-        # Formule par défaut
-        if np.isnan(ma200) or ma200 == 0:
-            return 0.5
-        return 1.0 if close > ma200 else 0.3
-    
-    def score_volatility(self, vol20: float) -> float:
-        """Score basé sur la volatilité (faible = opportunité)."""
-        if "volatility" in self.formulas:
-            try:
-                return eval(self.formulas["volatility"], {
-                    "vol20": vol20,
-                    "cap": self.volatility_cap,
-                    "np": np,
-                    "min": min,
-                    "max": max
-                })
-            except Exception as e:
-                logging.error(f"Erreur dans formule volatility: {e}")
-        
-        # Formule par défaut
-        if vol20 <= 0:
-            return 1.0
-        return float(np.clip(1.0 - (vol20 / self.volatility_cap), 0.0, 1.0))
     
     def compute_scores_for_ticker(self, ticker: str, period: str = "365d") -> Optional[Dict]:
         """
-        Calcule les scores pour un ticker donné.
+        Calcule les scores pour un ticker donné en utilisant les formules personnalisées.
         
         Args:
             ticker: Symbole du ticker
@@ -195,6 +129,8 @@ class ScoringEngine:
             df.columns = df.columns.get_level_values(0)
         
         df = df.dropna().copy()
+        
+        # Calcul des indicateurs techniques
         df["MA50"] = df["Close"].rolling(50, min_periods=1).mean()
         df["MA200"] = df["Close"].rolling(200, min_periods=1).mean()
         df["RSI14"] = compute_rsi(df["Close"], 14)
@@ -205,6 +141,7 @@ class ScoringEngine:
 
         latest = df.iloc[-1]
 
+        # Extraction des métriques
         close = float(latest["Close"])
         ma50 = float(latest["MA50"]) if not np.isnan(latest["MA50"]) else np.nan
         ma200 = float(latest["MA200"]) if not np.isnan(latest["MA200"]) else np.nan
@@ -213,24 +150,38 @@ class ScoringEngine:
         vol20 = float(latest["Vol20"]) if not np.isnan(latest["Vol20"]) else 0.0
         momentum30 = float(latest["Momentum30"]) if not np.isnan(latest["Momentum30"]) else 0.0
 
-        # Calcul des scores avec le moteur
-        draw_sc = self.score_drawdown(drawdown90)
-        rsi_sc = self.score_rsi(rsi14)
-        ma50_sc = self.score_dist_ma50(close, ma50)
-        mom_sc = self.score_momentum(momentum30)
-        trend_sc = self.score_trend_ma200(close, ma200)
-        vol_sc = self.score_volatility(vol20)
+        # Variables disponibles pour toutes les formules
+        common_vars = {
+            "close": close,
+            "ma50": ma50,
+            "ma200": ma200,
+            "rsi": rsi14,
+            "rsi14": rsi14,
+            "drawdown": drawdown90,
+            "drawdown90": drawdown90,
+            "vol20": vol20,
+            "volatility": vol20,
+            "momentum": momentum30,
+            "momentum30": momentum30
+        }
 
-        # Score composite - utiliser formula_weights si disponible, sinon weights par défaut
-        composite = (
-            self.formula_weights.get("drawdown90", self.weights.get("drawdown90", 0.25)) * draw_sc
-            + self.formula_weights.get("rsi14", self.weights.get("rsi14", 0.25)) * rsi_sc
-            + self.formula_weights.get("dist_ma50", self.weights.get("dist_ma50", 0.20)) * ma50_sc
-            + self.formula_weights.get("momentum30", self.weights.get("momentum30", 0.15)) * mom_sc
-            + self.formula_weights.get("trend_ma200", self.weights.get("trend_ma200", 0.10)) * trend_sc
-            + self.formula_weights.get("volatility20", self.weights.get("volatility20", 0.05)) * vol_sc
-        )
-
+        # Calcul dynamique des scores pour chaque formule
+        formula_scores = {}
+        composite = 0.0
+        total_weight = 0.0
+        
+        for formula_name in self.formulas.keys():
+            weight = self.formula_weights.get(formula_name, 0.0)
+            if weight > 0:
+                score = self.evaluate_formula(formula_name, common_vars)
+                formula_scores[formula_name] = score
+                composite += weight * score
+                total_weight += weight
+        
+        # Normaliser le score composite si les poids ne somment pas à 1
+        if total_weight > 0 and total_weight != 1.0:
+            composite = composite / total_weight
+        
         score_100 = round(100.0 * composite, 1)
 
         return {
@@ -244,20 +195,13 @@ class ScoringEngine:
             "drawdown90_pct": round(drawdown90 * 100.0, 2),
             "vol20_pct": round(vol20 * 100.0, 2),
             "momentum30_pct": round(momentum30 * 100.0, 2),
-            "components": {
-                "drawdown": round(draw_sc, 3),
-                "rsi": round(rsi_sc, 3),
-                "ma50": round(ma50_sc, 3),
-                "momentum": round(mom_sc, 3),
-                "trend": round(trend_sc, 3),
-                "volatility": round(vol_sc, 3)
-            },
+            "components": {name: round(score, 3) for name, score in formula_scores.items()},
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
     
     def compute_score_at_date(self, df: pd.DataFrame, date_idx: int) -> Optional[Dict]:
         """
-        Calcule le score à une date donnée (pour le backtesting).
+        Calcule le score à une date donnée (pour le backtesting) en utilisant les formules personnalisées.
         
         Args:
             df: DataFrame avec les données historiques
@@ -271,6 +215,7 @@ class ScoringEngine:
         if len(historical_data) < 200:
             return None
         
+        # Calcul des indicateurs techniques
         historical_data["MA50"] = historical_data["Close"].rolling(50, min_periods=1).mean()
         historical_data["MA200"] = historical_data["Close"].rolling(200, min_periods=1).mean()
         historical_data["RSI14"] = compute_rsi(historical_data["Close"], 14)
@@ -281,6 +226,7 @@ class ScoringEngine:
         
         latest = historical_data.iloc[-1]
         
+        # Extraction des métriques
         close = float(latest["Close"])
         ma50 = float(latest["MA50"]) if not np.isnan(latest["MA50"]) else np.nan
         ma200 = float(latest["MA200"]) if not np.isnan(latest["MA200"]) else np.nan
@@ -289,24 +235,40 @@ class ScoringEngine:
         vol20 = float(latest["Vol20"]) if not np.isnan(latest["Vol20"]) else 0.0
         momentum30 = float(latest["Momentum30"]) if not np.isnan(latest["Momentum30"]) else 0.0
         
-        draw_sc = self.score_drawdown(drawdown90)
-        rsi_sc = self.score_rsi(rsi14)
-        ma50_sc = self.score_dist_ma50(close, ma50)
-        mom_sc = self.score_momentum(momentum30)
-        trend_sc = self.score_trend_ma200(close, ma200)
-        vol_sc = self.score_volatility(vol20)
+        # Variables disponibles pour toutes les formules
+        common_vars = {
+            "close": close,
+            "ma50": ma50,
+            "ma200": ma200,
+            "rsi": rsi14,
+            "rsi14": rsi14,
+            "drawdown": drawdown90,
+            "drawdown90": drawdown90,
+            "vol20": vol20,
+            "volatility": vol20,
+            "momentum": momentum30,
+            "momentum30": momentum30
+        }
+
+        # Calcul dynamique des scores pour chaque formule
+        formula_scores = {}
+        composite = 0.0
+        total_weight = 0.0
         
-        # Score composite - utiliser formula_weights si disponible, sinon weights par défaut
-        composite = (
-            self.formula_weights.get("drawdown90", self.weights.get("drawdown90", 0.25)) * draw_sc
-            + self.formula_weights.get("rsi14", self.weights.get("rsi14", 0.25)) * rsi_sc
-            + self.formula_weights.get("dist_ma50", self.weights.get("dist_ma50", 0.20)) * ma50_sc
-            + self.formula_weights.get("momentum30", self.weights.get("momentum30", 0.15)) * mom_sc
-            + self.formula_weights.get("trend_ma200", self.weights.get("trend_ma200", 0.10)) * trend_sc
-            + self.formula_weights.get("volatility20", self.weights.get("volatility20", 0.05)) * vol_sc
-        )
+        for formula_name in self.formulas.keys():
+            weight = self.formula_weights.get(formula_name, 0.0)
+            if weight > 0:
+                score = self.evaluate_formula(formula_name, common_vars)
+                formula_scores[formula_name] = score
+                composite += weight * score
+                total_weight += weight
         
-        return {
+        # Normaliser le score composite si les poids ne somment pas à 1
+        if total_weight > 0 and total_weight != 1.0:
+            composite = composite / total_weight
+        
+        # Construire le dictionnaire de résultat avec toutes les colonnes de scores
+        result = {
             "date": historical_data.index[-1],
             "score": round(100.0 * composite, 1),
             "close": close,
@@ -316,10 +278,10 @@ class ScoringEngine:
             "drawdown90_pct": round(drawdown90 * 100.0, 2),
             "vol20_pct": round(vol20 * 100.0, 2),
             "momentum30_pct": round(momentum30 * 100.0, 2),
-            "score_drawdown": round(draw_sc * 100, 1),
-            "score_rsi": round(rsi_sc * 100, 1),
-            "score_ma50": round(ma50_sc * 100, 1),
-            "score_momentum": round(mom_sc * 100, 1),
-            "score_trend": round(trend_sc * 100, 1),
-            "score_volatility": round(vol_sc * 100, 1)
         }
+        
+        # Ajouter les scores individuels de chaque formule (score_xxx)
+        for formula_name, score in formula_scores.items():
+            result[f"score_{formula_name}"] = round(score * 100, 1)
+        
+        return result
