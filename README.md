@@ -1,4 +1,4 @@
-# DCA Entry Discord Bot
+# DEDBot
 
 A sophisticated Discord bot that calculates daily Dollar Cost Averaging (DCA) entry signals for ETFs and stocks based on technical analysis metrics. The bot includes a web interface for configuration management and backtesting capabilities.
 
