@@ -13,6 +13,9 @@ import pandas as pd
 from core.config import ConfigManager
 from core.scoring import ScoringEngine
 from core.backtest import BacktestEngine
+from bot_daily_score_v2 import daily_job
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 
 app = Flask(__name__)
@@ -26,6 +29,57 @@ else:
 
 # Configuration
 config_manager = ConfigManager()
+
+# Background Scheduler pour l'exécution automatique du bot
+bot_scheduler = None
+
+
+def init_bot_scheduler():
+    """Initialise le scheduler du bot en arrière-plan dans DedBot."""
+    global bot_scheduler
+
+    if os.environ.get("ENABLE_SCHEDULER", "true").lower() not in ("true", "1", "yes"):
+        logging.info("ℹ️ Scheduler en arrière-plan désactivé (ENABLE_SCHEDULER=false)")
+        return None
+
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "false":
+        return None
+
+    if bot_scheduler is not None and bot_scheduler.running:
+        return bot_scheduler
+
+    try:
+        config = config_manager.get_config()
+        timezone_str = config.get("timezone", "Europe/Paris")
+        bot_scheduler = BackgroundScheduler(timezone=timezone_str)
+
+        dev_mode = os.getenv("DEV", "false").lower() in ("true", "1", "yes")
+        if dev_mode:
+            trigger = CronTrigger(minute='*', timezone=timezone_str)
+            logging.info("🔧 MODE DEV ACTIVÉ: Scheduler du bot programmé toutes les minutes")
+        else:
+            schedule_hour = int(config.get("schedule_hour", 22))
+            schedule_minute = int(config.get("schedule_minute", 10))
+            trigger = CronTrigger(hour=schedule_hour, minute=schedule_minute, day_of_week='mon-fri', timezone=timezone_str)
+            logging.info("⏰ Scheduler du bot programmé: tous les jours ouvrés à %02d:%02d (%s)", schedule_hour, schedule_minute, timezone_str)
+
+        bot_scheduler.add_job(
+            lambda: daily_job(config_manager),
+            trigger=trigger,
+            id="daily_score_job",
+            name="daily_score_job",
+            replace_existing=True
+        )
+        bot_scheduler.start()
+        logging.info("✅ Scheduler en arrière-plan démarré dans DedBot")
+        return bot_scheduler
+    except Exception as e:
+        logging.exception("❌ Erreur lors du démarrage du scheduler: %s", e)
+        return None
+
+
+# Lancement automatique du scheduler au démarrage de DedBot
+init_bot_scheduler()
 
 
 def check_admin_token(token: str) -> bool:
@@ -75,6 +129,21 @@ def logout():
     """Déconnexion."""
     response = redirect(url_for('login'))
     response.delete_cookie('admin_token', httponly=True, samesite='Lax')
+    return response
+
+@app.route('/trigger-daily-job', methods=['POST'])
+def trigger_daily_job():
+    """Déclenche manuellement l'exécution du job quotidien de scoring."""
+    import threading
+    try:
+        t = threading.Thread(target=daily_job, args=(config_manager,))
+        t.daemon = True
+        t.start()
+        flash("Calcul quotidien du bot lancé en arrière-plan !", "success")
+    except Exception as e:
+        logging.exception("Erreur lors du déclenchement manuel du job")
+        flash(f"Erreur lors du déclenchement du job: {str(e)}", "error")
+    return redirect(url_for('index'))
     return response
 
 

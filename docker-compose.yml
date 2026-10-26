@@ -1,33 +1,9 @@
 version: '3.8'
 services:
-  # Bot DCA - Service principal
-  dca-bot:
-    image: imluky/dca-entry-discord-bot:latest
-    container_name: dca-bot
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    volumes:
-      - ./config.yaml:/app/config.yaml:ro
-      - ./data:/data
-    environment:
-      - TZ=UTC
-      - DEV=false  # "false" = 1x par jour, "true" = 1x par minute
-    command: python bot_daily_score_v2.py
-    tmpfs:
-      - /tmp:rw,size=64m
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-  
-  # Interface Web d'Administration
-  dca-web:
-    image: imluky/dca-entry-discord-bot:latest
-    container_name: dca-web
+  # DedBot - Service unifié (Bot DCA + Interface Web d'Administration)
+  dedbot:
+    image: imluky/dedbot:latest
+    container_name: dedbot
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -39,9 +15,9 @@ services:
       - ./config.yaml:/app/config.yaml:ro
       - ./data:/data
     environment:
-      - TZ=UTC
+      - TZ=Europe/Paris
+      - DEV=false  # "false" = 1x par jour, "true" = 1x par minute
       - SECRET_KEY=${SECRET_KEY:-changeme-in-production}
-    command: python web_app.py
     tmpfs:
       - /tmp:rw,size=64m
     logging:

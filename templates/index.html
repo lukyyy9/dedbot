@@ -10,6 +10,11 @@
         <p><strong>Timezone:</strong> {{ config.timezone }}</p>
         <p><strong>Tickers surveillés:</strong> {{ config.tickers|length }}</p>
         <p><strong>Webhook Discord:</strong> {{ '✅ Configuré' if config.webhook_url else '❌ Non configuré' }}</p>
+        <form method="POST" action="{{ url_for('trigger_daily_job') }}" style="margin-top: 15px;">
+            <button type="submit" class="btn btn-primary" onclick="return confirm('Lancer le calcul quotidien et l\'envoi Discord maintenant ?')">
+                🚀 Lancer le calcul quotidien maintenant
+            </button>
+        </form>
     </div>
     
     <div class="card">

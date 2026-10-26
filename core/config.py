@@ -81,7 +81,14 @@ def init_database():
 class ConfigManager:
     """Gestionnaire de configuration unifié (DB + YAML)."""
     
-    def __init__(self, yaml_path: str = "/app/config.yaml"):
+    def __init__(self, yaml_path: Optional[str] = None):
+        if yaml_path is None:
+            yaml_path = os.environ.get("CONFIG_PATH")
+            if not yaml_path:
+                if os.path.exists("/data/config.yaml"):
+                    yaml_path = "/data/config.yaml"
+                else:
+                    yaml_path = "/app/config.yaml"
         self.yaml_path = yaml_path
         self.db_path = DATABASE_PATH
         
@@ -96,7 +103,7 @@ class ConfigManager:
     def load_yaml_config(self) -> Dict:
         """Charge la configuration depuis le fichier YAML."""
         if not os.path.exists(self.yaml_path):
-            logging.error(f"❌ Fichier de configuration '{self.yaml_path}' introuvable.")
+            logging.debug(f"ℹ️ Fichier '{self.yaml_path}' non trouvé.")
             return {}
         
         try:
@@ -114,6 +121,21 @@ class ConfigManager:
         """
         # Charger la base YAML
         config = self.load_yaml_config()
+
+        # Support ADMIN_TOKEN via variable d'environnement (idéal pour CasaOS)
+        env_admin_token = os.environ.get("ADMIN_TOKEN")
+        if env_admin_token:
+            if "admin" not in config:
+                config["admin"] = {}
+            if "admin_tokens" not in config["admin"]:
+                config["admin"]["admin_tokens"] = []
+            if env_admin_token not in config["admin"]["admin_tokens"]:
+                config["admin"]["admin_tokens"].append(env_admin_token)
+
+        # Support WEBHOOK_URL via variable d'environnement
+        env_webhook = os.environ.get("WEBHOOK_URL")
+        if env_webhook:
+            config.setdefault("webhook_url", env_webhook)
         
         # Valeurs par défaut
         config.setdefault("data_period", "365d")
@@ -324,8 +346,8 @@ class ConfigManager:
         # Si pas de tickers en DB, utiliser ceux du YAML
         if not tickers:
             config = self.load_yaml_config()
+
             tickers = config.get("tickers", [])
-        
         return tickers
     
     # === Gestion des profils de poids ===

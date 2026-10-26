@@ -65,9 +65,9 @@ docker-compose up -d
 
 ## 🏗️ Architecture
 
-The project consists of two main services:
+DedBot runs as a **single unified container** (`dedbot`) combining both the automated scheduler and the administration interface:
 
-### 1. DCA Bot (`dca-bot`)
+### 1. Automated Scoring Bot (Background Scheduler)
 
 - Runs scheduled daily scoring calculations
 - Fetches market data from Yahoo Finance
@@ -75,7 +75,7 @@ The project consists of two main services:
 - Sends notifications to Discord
 - Logs results to CSV and SQLite database
 
-### 2. Web Interface (`dca-web`)
+### 2. Web Interface (`dedbot`)
 
 - Admin authentication system
 - **Database-driven configuration management** (no file editing required)

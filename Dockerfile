@@ -1,4 +1,4 @@
-# Dockerfile V2 - Bot DCA avec interface web (Secured & Non-root)
+# Dockerfile - DedBot (Secured & Non-root)
 FROM python:3.11-slim
 
 ARG BOT_UID=1000
@@ -36,5 +36,5 @@ USER botuser
 
 ENV PYTHONUNBUFFERED=1
 
-# Par défaut, lancer le bot (peut être overridé par docker-compose)
-CMD ["python", "bot_daily_score_v2.py"]
+# Par défaut, lancer DedBot (Web UI + scheduler de scoring en arrière-plan)
+CMD ["python", "web_app.py"]

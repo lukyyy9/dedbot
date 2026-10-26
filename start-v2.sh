@@ -1,8 +1,8 @@
 #!/bin/bash
-# start-v2.sh - Script de démarrage rapide pour la V2
+# start-v2.sh - Script de démarrage rapide pour DedBot
 
-echo "🤖 Bot DCA - Démarrage V2"
-echo "=========================="
+echo "🤖 DedBot - Démarrage V2"
+echo "========================="
 
 # Vérifier que config.yaml existe
 if [ ! -f "config.yaml" ]; then
@@ -15,26 +15,24 @@ fi
 mkdir -p data
 
 # Arrêter les anciens conteneurs
-echo "🛑 Arrêt des anciens conteneurs..."
+echo "🛑 Arrêt des conteneurs..."
 docker-compose down
 
 # Construire l'image
 echo "🔨 Construction de l'image Docker..."
-docker build -t imluky/dca-entry-discord-bot:v2 .
+docker build -t imluky/dedbot:latest .
 
-# Démarrer les services
-echo "🚀 Démarrage des services..."
+# Démarrer le service
+echo "🚀 Démarrage du service unifié..."
 docker-compose up -d
 
 echo ""
-echo "✅ Services démarrés !"
+echo "✅ DedBot démarré avec succès !"
 echo ""
-echo "📊 Bot DCA : docker logs -f dca-bot"
-echo "🌐 Interface web : http://localhost:5001"
+echo "🌐 Interface Web & Bot : http://localhost:5001"
 echo "   (Token d'admin configuré dans config.yaml)"
 echo ""
 echo "Commandes utiles:"
-echo "  - Voir les logs du bot    : docker-compose logs -f dca-bot"
-echo "  - Voir les logs du web    : docker-compose logs -f dca-web"
-echo "  - Arrêter les services    : docker-compose down"
+echo "  - Voir les logs           : docker-compose logs -f dedbot"
+echo "  - Arrêter le service      : docker-compose down"
 echo "  - Redémarrer              : docker-compose restart"
