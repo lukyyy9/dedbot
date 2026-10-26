@@ -5,6 +5,10 @@ services:
     image: imluky/dca-entry-discord-bot:latest
     container_name: dca-bot
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ./data:/data
@@ -25,6 +29,10 @@ services:
     image: imluky/dca-entry-discord-bot:latest
     container_name: dca-web
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     ports:
       - "5001:5001"
     volumes:
@@ -34,6 +42,8 @@ services:
       - TZ=UTC
       - SECRET_KEY=${SECRET_KEY:-changeme-in-production}
     command: python web_app.py
+    tmpfs:
+      - /tmp:rw,size=64m
     logging:
       driver: json-file
       options:

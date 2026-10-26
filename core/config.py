@@ -10,11 +10,14 @@ import logging
 from typing import Dict, Optional, List
 
 
-DATABASE_PATH = "/data/bot_config.db"
+DATABASE_PATH = os.environ.get("DATABASE_PATH", "/data/bot_config.db")
 
 
 def init_database():
     """Initialise la base de données SQLite pour stocker la configuration."""
+    db_dir = os.path.dirname(DATABASE_PATH)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
     

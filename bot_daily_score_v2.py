@@ -197,7 +197,7 @@ def shutdown(signum, frame):
         try:
             scheduler.shutdown(wait=False)
         except Exception:
-            pass
+            logging.warning("Scheduler shutdown interrupted")
     sys.exit(0)
 
 # ---------- MAIN ----------

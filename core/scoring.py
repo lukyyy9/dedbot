@@ -2,6 +2,7 @@
 # core/scoring.py
 # Logique de scoring centralisée et configurable
 
+import ast
 import logging
 import numpy as np
 import pandas as pd
@@ -20,6 +21,88 @@ def compute_rsi(series: pd.Series, period: int = 14) -> pd.Series:
     rs = ema_up / ema_down
     rsi = 100 - (100 / (1 + rs))
     return rsi
+
+
+ALLOWED_MATH_FUNCS = {"min", "max", "abs", "exp", "log", "sqrt"}
+ALLOWED_NP_ATTRS = {"clip", "exp", "log", "sqrt", "minimum", "maximum", "abs"}
+
+
+class SafeFormulaValidator(ast.NodeVisitor):
+    """Valide qu'une formule mathématique ne contient aucun code malveillant ou non autorisé."""
+
+    def generic_visit(self, node):
+        raise ValueError(f"Élément non autorisé dans la formule: {type(node).__name__}")
+
+    def visit_Expression(self, node):
+        self.visit(node.body)
+
+    def visit_Constant(self, node):
+        if not isinstance(node.value, (int, float, bool, type(None), str)):
+            raise ValueError(f"Type de constante non autorisé: {type(node.value).__name__}")
+
+    def visit_Name(self, node):
+        if not isinstance(node.ctx, ast.Load):
+            raise ValueError("Seule la lecture des variables est autorisée")
+        if node.id.startswith("_"):
+            raise ValueError("Accès aux identifiants privés interdit")
+
+    def visit_UnaryOp(self, node):
+        if not isinstance(node.op, (ast.UAdd, ast.USub, ast.Not)):
+            raise ValueError(f"Opérateur unaire non autorisé: {type(node.op).__name__}")
+        self.visit(node.operand)
+
+    def visit_BinOp(self, node):
+        if not isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod, ast.Pow)):
+            raise ValueError(f"Opérateur binaire non autorisé: {type(node.op).__name__}")
+        self.visit(node.left)
+        self.visit(node.right)
+
+    def visit_Compare(self, node):
+        for op in node.ops:
+            if not isinstance(op, (ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Eq, ast.NotEq)):
+                raise ValueError(f"Opérateur de comparaison non autorisé: {type(node.op).__name__}")
+        self.visit(node.left)
+        for comparator in node.comparators:
+            self.visit(comparator)
+
+    def visit_BoolOp(self, node):
+        if not isinstance(node.op, (ast.And, ast.Or)):
+            raise ValueError(f"Opérateur booléen non autorisé: {type(node.op).__name__}")
+        for value in node.values:
+            self.visit(value)
+
+    def visit_IfExp(self, node):
+        self.visit(node.test)
+        self.visit(node.body)
+        self.visit(node.orelse)
+
+    def visit_Call(self, node):
+        if isinstance(node.func, ast.Name):
+            if node.func.id not in ALLOWED_MATH_FUNCS:
+                raise ValueError(f"Appel de fonction non autorisé: {node.func.id}")
+        elif isinstance(node.func, ast.Attribute):
+            if not (isinstance(node.func.value, ast.Name) and node.func.value.id == "np" and node.func.attr in ALLOWED_NP_ATTRS):
+                raise ValueError(f"Méthode non autorisée: {node.func.attr}")
+        else:
+            raise ValueError("Structure d'appel non autorisée")
+
+        for arg in node.args:
+            self.visit(arg)
+        for keyword in node.keywords:
+            self.visit(keyword.value)
+
+    def visit_Attribute(self, node):
+        if isinstance(node.value, ast.Name) and node.value.id == "np" and node.attr in ALLOWED_NP_ATTRS:
+            return
+        raise ValueError(f"Accès d'attribut non autorisé: {node.attr}")
+
+
+def validate_and_compile_formula(formula: str):
+    """Valide l'AST de la formule et la compile si sécurisée."""
+    tree = ast.parse(formula, mode="eval")
+    validator = SafeFormulaValidator()
+    validator.visit(tree)
+    return compile(tree, "<safe_formula>", "eval")
 
 
 class ScoringEngine:
@@ -85,7 +168,8 @@ class ScoringEngine:
         }
         
         try:
-            result = eval(formula, {"__builtins__": {}}, eval_context)
+            compiled_code = validate_and_compile_formula(formula)
+            result = eval(compiled_code, {"__builtins__": {}}, eval_context)  # nosec B307
             # S'assurer que le résultat est entre 0 et 1
             return float(np.clip(result, 0.0, 1.0))
         except Exception as e:

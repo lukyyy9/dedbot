@@ -3,6 +3,7 @@
 # Interface web d'administration
 
 import os
+import hmac
 import logging
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
@@ -15,7 +16,13 @@ from core.backtest import BacktestEngine
 
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
+DEFAULT_INSECURE_KEY = "dev-secret-key-change-in-production"  # nosec B105
+secret_key = os.environ.get("SECRET_KEY")
+if not secret_key or secret_key == DEFAULT_INSECURE_KEY:
+    logging.warning("⚠️ SECRET_KEY non configurée ou valeur par défaut. Définissez une clé aléatoire et robuste en production.")
+    app.secret_key = secret_key or DEFAULT_INSECURE_KEY
+else:
+    app.secret_key = secret_key
 
 # Configuration
 config_manager = ConfigManager()
@@ -25,7 +32,9 @@ def check_admin_token(token: str) -> bool:
     """Vérifie si le token d'admin est valide."""
     config = config_manager.get_config()
     admin_tokens = config.get("admin", {}).get("admin_tokens", [])
-    return token in admin_tokens
+    if not token or not isinstance(token, str):
+        return False
+    return any(hmac.compare_digest(token, str(valid_token)) for valid_token in admin_tokens)
 
 
 # Middleware d'authentification
@@ -45,7 +54,15 @@ def login():
         token = request.form.get('token')
         if check_admin_token(token):
             response = redirect(url_for('index'))
-            response.set_cookie('admin_token', token, max_age=7*24*60*60)  # 7 jours
+            is_secure = os.environ.get("COOKIE_SECURE", "false").lower() in ("true", "1")
+            response.set_cookie(
+                'admin_token',
+                token,
+                max_age=7*24*60*60,
+                httponly=True,
+                samesite='Lax',
+                secure=is_secure
+            )  # 7 jours
             return response
         else:
             flash('Token invalide', 'error')
@@ -57,7 +74,7 @@ def login():
 def logout():
     """Déconnexion."""
     response = redirect(url_for('login'))
-    response.delete_cookie('admin_token')
+    response.delete_cookie('admin_token', httponly=True, samesite='Lax')
     return response
 
 
@@ -430,4 +447,7 @@ def update_profile(profile_id):
 if __name__ == '__main__':
     # Mode développement
     logging.basicConfig(level=logging.INFO)
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() in ("true", "1")
+    host = os.environ.get("FLASK_HOST", "0.0.0.0")  # nosec B104
+    port = int(os.environ.get("FLASK_PORT", 5001))
+    app.run(host=host, port=port, debug=debug_mode)
